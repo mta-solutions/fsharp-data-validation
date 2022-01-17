@@ -180,4 +180,4 @@ type VCtxBuilder() =
                 | Valid b               -> this.Return(Field (n, b))
         )
 
-let validation = new VCtxBuilder()
+let validation = VCtxBuilder()
