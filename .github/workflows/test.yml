@@ -1,0 +1,32 @@
+﻿name: Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 6.0.x
+
+      - name: Restore .NET tools
+        run: dotnet tool restore
+
+      - name: Install .NET dependencies
+        run: dotnet paket install
+
+      - name: Build .NET
+        run: dotnet build
+
+      - name: Test .NET
+        run: dotnet test --no-build --verbosity normal
