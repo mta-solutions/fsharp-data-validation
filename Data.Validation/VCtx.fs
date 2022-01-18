@@ -1,27 +1,27 @@
-﻿[<AutoOpen>]
-module Data.Validation.VCtx
+﻿namespace Data.Validation
 
 type VCtx<'F, 'A> = 
     internal
     | ValidCtx of 'A
-    | DisputedCtx of ('F list) * FailureMap<'F> * 'A
-    | RefutedCtx of ('F list) * FailureMap<'F>
+    | DisputedCtx of 'F list * FailureMap<'F> * 'A
+    | RefutedCtx of 'F list * FailureMap<'F>
 
-let bind fn c =
-    match c with
-    | ValidCtx a                -> fn a
-    | RefutedCtx (gfs,lfs)      -> RefutedCtx (gfs,lfs)
-    | DisputedCtx (gfs,lfs,a)   -> 
-        match fn a with
-        | ValidCtx b                -> DisputedCtx (gfs,lfs,b)
-        | DisputedCtx (gfs',lfs',b) -> DisputedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs', b)
-        | RefutedCtx (gfs',lfs')    -> RefutedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs')
+module VCtx =
+    let bind fn c =
+        match c with
+        | ValidCtx a                -> fn a
+        | RefutedCtx (gfs,lfs)      -> RefutedCtx (gfs,lfs)
+        | DisputedCtx (gfs,lfs,a)   -> 
+            match fn a with
+            | ValidCtx b                -> DisputedCtx (gfs,lfs,b)
+            | DisputedCtx (gfs',lfs',b) -> DisputedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs', b)
+            | RefutedCtx (gfs',lfs')    -> RefutedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs')
 
-let map fn c = 
-    match c with
-    | ValidCtx a                -> ValidCtx (fn a)
-    | DisputedCtx (gfs,lfs,a)   -> DisputedCtx (gfs,lfs,fn a)
-    | RefutedCtx (gfs,lfs)      -> RefutedCtx (gfs,lfs)
+    let map fn c = 
+        match c with
+        | ValidCtx a                -> ValidCtx (fn a)
+        | DisputedCtx (gfs,lfs,a)   -> DisputedCtx (gfs,lfs,fn a)
+        | RefutedCtx (gfs,lfs)      -> RefutedCtx (gfs,lfs)
 
 type VCtxBuilder() =
     member this.Bind(v:VCtx<'F, 'A>, fn:'A -> VCtx<'F, 'B>): VCtx<'F, 'B> =
@@ -63,7 +63,7 @@ type VCtxBuilder() =
     /// Performs some given validation using a 'Field' with a given name and value.
     [<CustomOperation("withField")>]
     member this.WithField(c, n:Name, b) = 
-        c |> map (fun v -> Field (n, b))
+        c |> VCtx.map (fun _v -> Field (n, b))
     
     /// Performs some given validation using a 'Field' with a given name and value.
     [<CustomOperation("withField")>]
@@ -75,26 +75,26 @@ type VCtxBuilder() =
     /// Performs some given validation using a 'Global' with a given value.
     [<CustomOperation("withValue")>]
     member this.WithValue(c, b) = 
-        c |> map (fun v -> Global b)
+        c |> VCtx.map (fun _v -> Global b)
     
     /// Maps a proven value with a given function.
     [<CustomOperation("whenProven")>]
     member this.WhenProven(c:VCtx<'F, ValueCtx<'A>>, fn:'A -> 'B): VCtx<'F, 'B> = 
-        c |> map (fun a -> getValue a |> fn)
+        c |> VCtx.map (fun a -> ValueCtx.getValue a |> fn)
         
     /// Maps a proven value with a given function.
     [<CustomOperation("optional")>]
     member this.Optional(c:VCtx<'F, ValueCtx<'A option>>, fn:'A -> VCtx<'F, ValueCtx<'B>>): VCtx<'F, ValueCtx<'B option>> = 
-        c |> bind (fun v -> 
-            match getValue v with
-            | None -> ValidCtx (setValue v None)
-            | Some a -> fn a |> map (ValueCtx.map Some)
+        c |> VCtx.bind (fun v -> 
+            match ValueCtx.getValue v with
+            | None -> ValidCtx (ValueCtx.setValue v None)
+            | Some a -> fn a |> VCtx.map (ValueCtx.map Some)
         )
         
     /// Unwraps a proven value.
     [<CustomOperation("qed")>]
     member this.Proven(c:VCtx<'F, ValueCtx<'A>>): VCtx<'F, 'A> = 
-        c |> map getValue
+        c |> VCtx.map ValueCtx.getValue
     
     /// Adds a validation failure to the result and ends validation.
     [<CustomOperation("refute")>]
@@ -138,7 +138,7 @@ type VCtxBuilder() =
     [<CustomOperation("disputeWith")>]
     member this.DisputeWith (c:VCtx<'F, ValueCtx<'A>>, fn:'A -> 'F option): VCtx<'F, ValueCtx<'A>> =
         this.Bind(c, fun v ->
-            match fn (getValue v) with
+            match fn (ValueCtx.getValue v) with
             | Some f   -> this.Dispute(v, f)
             | None     -> this.Return(v)
         )
@@ -158,9 +158,9 @@ type VCtxBuilder() =
     [<CustomOperation("refuteWith")>]
     member this.RefuteWith(c:VCtx<'F, ValueCtx<'A>>, fn:'A -> Result<'B, 'F>): VCtx<'F, ValueCtx<'B>> =
         this.Bind(c, fun v ->
-            match fn (getValue v) with
+            match fn (ValueCtx.getValue v) with
             | Error f   -> this.Refute(v, f)
-            | Ok b      -> this.Return(setValue v b)
+            | Ok b      -> this.Return(ValueCtx.setValue v b)
         )
 
     /// Performs a validation using a given function and handles the result.
@@ -180,4 +180,6 @@ type VCtxBuilder() =
                 | Valid b               -> this.Return(Field (n, b))
         )
 
-let validation = VCtxBuilder()
+[<AutoOpen>]
+module Validation =
+    let validation = VCtxBuilder()

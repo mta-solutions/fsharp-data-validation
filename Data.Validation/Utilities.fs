@@ -1,16 +1,16 @@
 ﻿module internal Data.Validation.Utilities
 
 // Given a sequence of options, return list of Some
-let catOptions (l) = Seq.choose id l
+let catOptions l = Seq.choose id l
 
-let oks (l) =
+let oks l =
     (Seq.empty, l) ||> Seq.fold (fun acc v ->
         match v with
         | Error _ -> acc
         | Ok a -> Seq.append acc [a]
     )
     
-let errors (l) =
+let errors l =
     (Seq.empty, l) ||> Seq.fold (fun acc v ->
         match v with
         | Error a -> Seq.append acc [a]
