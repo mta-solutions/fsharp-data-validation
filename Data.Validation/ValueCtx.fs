@@ -12,8 +12,8 @@ let getValue<'A> (v:ValueCtx<'A>): 'A =
 
 let setValue<'A, 'B> (v:ValueCtx<'A>) (b:'B): ValueCtx<'B> =
     match v with
-    | Field (n, a) -> Field (n, b)
-    | Global a     -> Global b
+    | Field (n, _a) -> Field (n, b)
+    | Global _a     -> Global b
     
 let map (fn:'A -> 'B) (v:ValueCtx<'A>): ValueCtx<'B> =
     getValue v |> fn |> setValue v

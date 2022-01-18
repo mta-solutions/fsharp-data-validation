@@ -1,15 +1,7 @@
 ﻿module internal Data.Validation.Utilities
 
-open System.Collections
-open System.Collections.Generic
-open System.Linq
-
-let catOptions (l) =
-    (Seq.empty, l) ||> Seq.fold (fun acc v ->
-        match v with
-        | None -> acc
-        | Some a -> Seq.append acc [a]
-    )
+// Given a sequence of options, return list of Some
+let catOptions (l) = Seq.choose id l
 
 let oks (l) =
     (Seq.empty, l) ||> Seq.fold (fun acc v ->

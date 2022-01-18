@@ -10,10 +10,15 @@
     <Compile Include="Utilities.fs" />
     <Compile Include="Proof.fs" />
     <Compile Include="VCtx.fs" />
-    <None Include="paket.references" />
     <Compile Include="Library.fs" />
     <Compile Include="Primitives.fs" />
     <Compile Include="ComplexTypes.fs" />
+    <None Include="paket.references" />
   </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="$(AssemblyName).Tests" />
+  </ItemGroup>
+  
   <Import Project="..\.paket\Paket.Restore.targets" />
 </Project>
