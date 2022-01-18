@@ -1,7 +1,6 @@
 ﻿[<AutoOpen>]
 module Data.Validation.Default
 
-open System
 open System.Collections.Generic
 open System.Linq
 
@@ -47,7 +46,7 @@ let isRequiredUnless f b v = isRequiredWhen f (not b) v
 /// If not, it adds the given failure to the result and validation end.
 let isError e = 
     match e with
-    | Error a   -> true
+    | Error _   -> true
     | Ok _      -> false
 
 /// Checks that a `Result` value is a `Ok`.
@@ -55,7 +54,7 @@ let isError e =
 let isOk e = 
     match e with
     | Error _   -> false
-    | Ok a      -> true
+    | Ok _      -> true
 
 /// Checks that the `IEnumerable` is empty.
 /// If not, it adds the given failure to the result and validation continues.
@@ -111,7 +110,7 @@ let doesNotHaveElem e (a:#seq<_>) = a.Contains(e) |> not
 
 /// If any element is valid, the entire value is valid.
 let ifAny (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
-    let xs = getValue v
+    let xs = ValueCtx.getValue v
     let fs = List.ofSeq (query { for x in xs do select (fn x) } |> Utilities.catOptions)
     if fs.Count() = xs.Count()
         then validation { disputeMany v fs }
@@ -119,7 +118,7 @@ let ifAny (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
 
 /// Every element must be valid.
 let ifAll (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
-    let xs = getValue v
+    let xs = ValueCtx.getValue v
     let fs = List.ofSeq (query { for x in xs do select (fn x) } |> Utilities.catOptions)
     match fs with
     | [] -> validation.Return(v)
@@ -127,15 +126,15 @@ let ifAll (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
 
 /// Validate each element with a given function.
 let ifEach fn v =
-    let xs = getValue v
+    let xs = ValueCtx.getValue v
     let es = List.ofSeq (query { for x in xs do select (fn x) })
     match List.ofSeq(Utilities.errors es) with
-    | []  -> validation.Return(Utilities.oks es |> setValue v)
+    | []  -> validation.Return(Utilities.oks es |> ValueCtx.setValue v)
     | fs -> validation { refuteMany v fs }
 
 /// Validate each element with a given function.
 let ifEachProven fn v =
-    let vs = getValue v |> Seq.map (fun a -> fn a |> Proof.bind (fun b -> Seq.singleton(b)))
+    let vs = ValueCtx.getValue v |> Seq.map (fun a -> fn a |> Proof.bind (fun b -> Seq.singleton(b)))
     let p = (Proof.Invalid([], Map.empty), vs) ||> Seq.fold (fun acc p' ->
         match p' with
         | Valid b              -> 
@@ -148,7 +147,7 @@ let ifEachProven fn v =
             | Invalid (gfs',lfs')   -> Invalid (List.append gfs' gfs, Utilities.mergeFailures lfs lfs')
     )
     match p with
-        | Valid es -> validation.Return(setValue v es)
+        | Valid es -> validation.Return(ValueCtx.setValue v es)
         | Invalid (gfs, lfs) -> 
             match v with
             | Global _      -> RefutedCtx (gfs, lfs)
