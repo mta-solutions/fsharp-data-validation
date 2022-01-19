@@ -106,6 +106,7 @@ type RecordFailures =
     | MissingConditionalEmail
     | MissingConditionalPhone
     | MissingUserId
+    | OtherFailure
 
 type UserContactDTO =
     {
@@ -143,6 +144,11 @@ type UserContactDTO =
                         withValue v
                         refuteWithProof (Proof.mapInvalid EmailAddressFailure << mkEmailAddress)
                     })
+                    qed
+                }
+                and! _ = validation {
+                    withValue this
+                    disputeWithFact OtherFailure (fun a -> a.UserId <> Some 0)
                     qed
                 }
                 return { UserId = uid; PhoneNumber = pn; EmailAddress = ea; ContactPreference = cp }
@@ -183,5 +189,85 @@ let ``UserContactDTO: Returns single failure when email is invalid`` (PositiveIn
             [],
             Map.ofList [
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
+            ])
+    Assert.Equal(expected, validate input)
+    
+[<Property>]
+let ``UserContactDTO: Returns multiple failures when email and userid are invalid`` (NegativeInt uid) =
+    let phone = None
+    let email = "test@test"
+    let cp = Email
+    let input = {
+        UserContactDTO.UserId = Some uid
+        PhoneNumber = phone
+        EmailAddress = Some email
+        ContactPreference = cp
+    }
+    let expected =
+        Invalid (
+            [],
+            Map.ofList [
+                ([mkName "UserId" |> Option.get], [UserIdFailure LessThanOneFailure])
+                ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
+            ])
+    Assert.Equal(expected, validate input)
+    
+[<Fact>]
+let ``UserContactDTO: Returns multiple failures when email is invalid and userid is missing`` () =
+    let phone = None
+    let email = "test@test"
+    let cp = Email
+    let input = {
+        UserContactDTO.UserId = None
+        PhoneNumber = phone
+        EmailAddress = Some email
+        ContactPreference = cp
+    }
+    let expected =
+        Invalid (
+            [],
+            Map.ofList [
+                ([mkName "UserId" |> Option.get], [MissingUserId])
+                ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
+            ])
+    Assert.Equal(expected, validate input)
+    
+[<Fact>]
+let ``UserContactDTO: Returns multiple failures and global when email is invalid and userid is 0`` () =
+    let phone = None
+    let email = "test@test"
+    let cp = Email
+    let input = {
+        UserContactDTO.UserId = Some 0
+        PhoneNumber = phone
+        EmailAddress = Some email
+        ContactPreference = cp
+    }
+    let expected =
+        Invalid (
+            [OtherFailure],
+            Map.ofList [
+                ([mkName "UserId" |> Option.get], [UserIdFailure LessThanOneFailure])
+                ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
+            ])
+    Assert.Equal(expected, validate input)
+    
+[<Property>]
+let ``UserContactDTO: Returns multiple failures when email is invalid and contact preference is phone`` (PositiveInt uid) =
+    let phone = None
+    let email = "test@test"
+    let cp = Phone
+    let input = {
+        UserContactDTO.UserId = Some uid
+        PhoneNumber = phone
+        EmailAddress = Some email
+        ContactPreference = cp
+    }
+    let expected =
+        Invalid (
+            [],
+            Map.ofList [
+                ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
+                ([mkName "PhoneNumber" |> Option.get], [MissingConditionalPhone])
             ])
     Assert.Equal(expected, validate input)

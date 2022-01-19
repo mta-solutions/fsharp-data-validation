@@ -62,9 +62,9 @@ type VCtxBuilder() =
 
     member this.Yield(a:'A) = this.Return(a)
 
-    //member this.Delay(fn:unit -> VCtx<'F, 'A>): unit -> VCtx<'F, 'A> = fn
+    member this.Delay(fn:unit -> VCtx<'F, 'A>): unit -> VCtx<'F, 'A> = fn
 
-    //member this.Run(fn:unit -> VCtx<'F, 'A>): VCtx<'F, 'A> = fn()
+    member this.Run(fn:unit -> VCtx<'F, 'A>): VCtx<'F, 'A> = fn()
 
     member this.Zero() = ValidCtx ()
         
