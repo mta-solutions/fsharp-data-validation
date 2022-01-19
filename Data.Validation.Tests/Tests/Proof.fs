@@ -3,6 +3,7 @@ module Data.Validation.Tests.Proof
 open Xunit
 open FsCheck
 open FsCheck.Xunit
+open System.Text.Json
 
 open Data.Validation
 
@@ -66,3 +67,42 @@ let ``combine: two invalid proofs results in concatenated errors``
     let expected =
         Invalid ([gf1; gf2], Map.ofList [([field1], [lf1; lf2]); ([field2], [lf3])])
     Assert.Equal(result, expected)
+
+type MyRecord = { MyName: string; MyInt: int; }
+    
+[<Fact>]
+let ``serialize: valid proof of type T should result in JSON representing T`` () =
+    // Arrange
+    let sot = Valid ({ MyName = "John Smith"; MyInt = 42 })
+
+    // Act
+    let json = JsonSerializer.Serialize(sot)
+
+    //Assert
+    Assert.Equal("{\"MyName\":\"John Smith\",\"MyInt\":42}", json)
+
+type MyFailures = 
+    | EmptyName
+    | IntToSmall
+    | NameAndNumberDoNotMatch of string * int
+    override this.ToString() = 
+        match this with
+        | EmptyName                     -> "MyName cannot be empty."
+        | IntToSmall                    -> "MyInt cannot be less than 42."
+        | NameAndNumberDoNotMatch (n,i) -> sprintf "%s's number can only be 42, not %i." n i
+    
+[<Fact>]
+let ``serialize: invalid proof of type T should result in JSON representing the failures`` () =
+    // Arrange
+    let myName = (mkName "MyName").Value
+    let myObj = (mkName "MyObj").Value
+    let myInt = (mkName "MyInt").Value
+    let gfs = [NameAndNumberDoNotMatch ("John Smith", 41)]
+    let lfs = Map.ofList [([myName], [EmptyName]); ([myObj; myInt], [IntToSmall])]
+    let sot = Invalid (gfs, lfs)
+
+    // Act
+    let json = JsonSerializer.Serialize(sot)
+
+    //Assert
+    Assert.Equal("{\"failures\":[\"John Smith\\u0027s number can only be 42, not 41.\"],\"fields\":{\"myName\":[\"MyName cannot be empty.\"],\"myObj.myInt\":[\"MyInt cannot be less than 42.\"]}}", json)
