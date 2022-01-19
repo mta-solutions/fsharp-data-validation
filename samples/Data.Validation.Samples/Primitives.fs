@@ -1,6 +1,8 @@
-﻿module Data.Validation.Primitives
+﻿module Data.Validation.Samples.Primitives
 
 open System.Text.RegularExpressions
+
+open Data.Validation
 
 type MyFailures = 
     | NameFailure

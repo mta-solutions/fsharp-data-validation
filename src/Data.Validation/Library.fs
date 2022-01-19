@@ -27,7 +27,7 @@ let isRequired (f:'F) (ma:'A option): Result<'A, 'F> =
     | Some a -> Ok a
 
 /// Checks that a `Option` value is a `Some` when some condition is true.
-/// If the condition is met and the value is `Some`, 
+/// If the condition is met and the value is `None`, 
 /// it adds the given failure to the result and validation continues.
 let isRequiredWhen f b (ma:'A option): 'F option =
     match b with
@@ -37,7 +37,7 @@ let isRequiredWhen f b (ma:'A option): 'F option =
         | None   -> Some f
         | Some _ -> None
 
-/// Checks that a 'Data.Maybe.Maybe' value is a `Option` when some condition is false.
+/// Checks that a 'Option' value is a `Some` when some condition is false.
 /// If the condition is not met and the value is `Some`, 
 /// it adds the given failure to the result and validation continues.
 let isRequiredUnless f b v = isRequiredWhen f (not b) v
@@ -86,19 +86,19 @@ let isNotEqual a b = a = b |> not
 
 /// Checks that a value is less than another.
 /// If not, it adds the given failure to the result and validation continues.
-let isLessThan = (<)
+let isLessThan = (>)
 
 /// Checks that a value is greater than another.
 /// If not, it adds the given failure to the result and validation continues.
-let isGreaterThan = (>)
+let isGreaterThan = (<)
 
 /// Checks that a value is less than or equal to another.
 /// If not, it adds the given failure to the result and validation continues.
-let isLessThanOrEqual = (<=)
+let isLessThanOrEqual = (>=)
 
 /// Checks that a value is greater than or equal to another.
 /// If not, it adds the given failure to the result and validation continues.
-let isGreaterThanOrEqual = (>=)
+let isGreaterThanOrEqual = (<=)
 
 /// Checks that a `IEnumerable` has a given element.
 /// If not, it adds the given failure to the result and validation continues.
@@ -134,7 +134,7 @@ let ifEach fn v =
 
 /// Validate each element with a given function.
 let ifEachProven fn v =
-    let vs = ValueCtx.getValue v |> Seq.map (fun a -> fn a |> Proof.bind (fun b -> Seq.singleton(b)))
+    let vs = ValueCtx.getValue v |> Seq.map (fun a -> fn a |> Proof.map (fun b -> Seq.singleton(b)))
     let p = (Proof.Invalid([], Map.empty), vs) ||> Seq.fold (fun acc p' ->
         match p' with
         | Valid b              -> 
@@ -164,5 +164,5 @@ let isInvalid p = isValid p |> not
 
 /// Flatten a list of proofs into a proof of the list
 let flattenProofs ps = 
-    let ps' = ps |> List.map (Proof.bind (fun a -> [a]))
+    let ps' = ps |> List.map (Proof.map (fun a -> [a]))
     (Valid [], ps') ||> List.fold (Proof.combine (@))

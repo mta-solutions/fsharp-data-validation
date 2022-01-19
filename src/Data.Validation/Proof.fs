@@ -55,11 +55,18 @@ and ProofConverterFactory() =
             Activator.CreateInstance(t) :?> JsonConverter
 
 module Proof =
-    let bind fn p = 
+    // Applies function to the proof value
+    let map fn p = 
         match p with
         | Invalid (gfs, lfs)    -> Invalid (gfs, lfs)
         | Valid a               -> Valid (fn a)
 
+    // Applies function to failure type
+    let mapInvalid fn p =
+        match p with
+        | Invalid (gfs, lfs) -> Invalid (List.map fn gfs, Map.map (fun _ s -> List.map fn s) lfs)
+        | Valid a -> Valid a
+    
     let combine fn p1 p2 =
         match p1 with
         | Valid a1 ->
