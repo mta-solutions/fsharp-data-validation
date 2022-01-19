@@ -23,6 +23,14 @@ module VCtx =
         | DisputedCtx (gfs,lfs,a)   -> DisputedCtx (gfs,lfs,fn a)
         | RefutedCtx (gfs,lfs)      -> RefutedCtx (gfs,lfs)
 
+    let applyFailures (v:ValueCtx<'A>) (gfs:'F list,lfs:FailureMap<'F>) (gfs':'F list,lfs':FailureMap<'F>): 'F list * FailureMap<'F> = 
+        match v with
+        | Global a -> (gfs @ gfs', Utilities.mergeFailures lfs lfs')
+        | Field (n, a) -> 
+            let lfs2 = Utilities.mapKeys (fun ns -> n :: ns) lfs'
+            let lfs3 = Map.add [n] gfs' Map.empty
+            (gfs, Utilities.mergeFailures lfs <| Utilities.mergeFailures lfs3 lfs2)
+
 type VCtxBuilder() =
     member this.Bind(v:VCtx<'F, 'A>, fn:'A -> VCtx<'F, 'B>): VCtx<'F, 'B> =
         match v with
@@ -54,9 +62,9 @@ type VCtxBuilder() =
 
     member this.Yield(a:'A) = this.Return(a)
 
-    member this.Delay(fn:unit -> VCtx<'F, 'A>): unit -> VCtx<'F, 'A> = fn
+    //member this.Delay(fn:unit -> VCtx<'F, 'A>): unit -> VCtx<'F, 'A> = fn
 
-    member this.Run(fn:unit -> VCtx<'F, 'A>): VCtx<'F, 'A> = fn()
+    //member this.Run(fn:unit -> VCtx<'F, 'A>): VCtx<'F, 'A> = fn()
 
     member this.Zero() = ValidCtx ()
         
@@ -84,12 +92,29 @@ type VCtxBuilder() =
         
     /// Maps a proven value with a given function.
     [<CustomOperation("optional")>]
-    member this.Optional(c:VCtx<'F, ValueCtx<'A option>>, fn:'A -> VCtx<'F, ValueCtx<'B>>): VCtx<'F, ValueCtx<'B option>> = 
-        c |> VCtx.bind (fun v -> 
+    member this.Optional(c:VCtx<'F, ValueCtx<'A option>>, fn:'A -> VCtx<'F, ValueCtx<'B>>): VCtx<'F, ValueCtx<'B option>> =
+        match c with
+        | ValidCtx v                -> 
             match ValueCtx.getValue v with
             | None -> ValidCtx (ValueCtx.setValue v None)
-            | Some a -> fn a |> VCtx.map (ValueCtx.map Some)
-        )
+            | Some a -> //(fn a) |> (VCtx.map (ValueCtx.map Some))
+                match fn a with
+                | ValidCtx b                -> ValidCtx (ValueCtx.map Some b)
+                | DisputedCtx (gfs,lfs,b)   -> 
+                    let (gfs',lfs') = VCtx.applyFailures v ([], Map.empty) (gfs,lfs)
+                    DisputedCtx (gfs',lfs',ValueCtx.map Some b)
+                | RefutedCtx (gfs,lfs)      -> RefutedCtx (VCtx.applyFailures v ([], Map.empty) (gfs,lfs))
+        | DisputedCtx (gfs,lfs,v)   ->
+            match ValueCtx.getValue v with
+            | None -> DisputedCtx (gfs,lfs,ValueCtx.setValue v None)
+            | Some a -> 
+                match fn a with
+                | ValidCtx b                -> DisputedCtx (gfs,lfs,ValueCtx.map Some b)
+                | DisputedCtx (gfs',lfs',b) -> 
+                    let (gfs2,lfs2) = VCtx.applyFailures v (gfs,lfs) (gfs',lfs')
+                    DisputedCtx (gfs2,lfs2,ValueCtx.map Some b)
+                | RefutedCtx (gfs',lfs')    -> RefutedCtx (VCtx.applyFailures v (gfs,lfs) (gfs',lfs'))
+        | RefutedCtx (gfs,lfs)   -> RefutedCtx (gfs,lfs)
         
     /// Unwraps a proven value.
     [<CustomOperation("qed")>]
