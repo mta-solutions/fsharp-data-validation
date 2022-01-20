@@ -37,7 +37,7 @@ let isRequiredWhen f b (ma:'A option): 'F option =
         | None   -> Some f
         | Some _ -> None
 
-/// Checks that a 'Option' value is a `Some` when some condition is false.
+/// Checks that a `Option` value is a `Some` when some condition is false.
 /// If the condition is not met and the value is `Some`, 
 /// it adds the given failure to the result and validation continues.
 let isRequiredUnless f b v = isRequiredWhen f (not b) v
