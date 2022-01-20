@@ -1,7 +1,8 @@
-﻿module Data.Valdation.ComplexTypes
+﻿module Data.Valdation.Samples.ComplexTypes
 
 open Data.Validation
-open Data.Validation.Primitives
+
+open Data.Validation.Samples.Primitives
 
 // Model
 type User = { 

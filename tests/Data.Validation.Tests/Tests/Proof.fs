@@ -8,20 +8,20 @@ open System.Text.Json
 open Data.Validation
 
 [<Property>]
-let ``bind: Does not change the contents of an invalid proof``
+let ``map: Does not change the contents of an invalid proof``
     (gf1, NonWhiteSpaceString n1, lf1)
     =
     let field1 = mkName n1 |> Option.get
     let input : Proof<string, int> = Invalid ([gf1], Map.ofList [([field1], [lf1])])
-    let result = Proof.bind (fun a -> a + 1) input
+    let result = Proof.map (fun a -> a + 1) input
     Assert.Equal(result, input)
 
 [<Property>]
-let ``bind: Converts a Proof<f, a> to a Proof<f, b>``
+let ``map: Converts a Proof<f, a> to a Proof<f, b>``
     (n : int)
     =
     let input = Valid n
-    let result = Proof.bind (fun a -> a.ToString()) input
+    let result = Proof.map (fun a -> a.ToString()) input
     Assert.Equal(result, Valid (n.ToString()))
 
 [<Property(Verbose = false)>]

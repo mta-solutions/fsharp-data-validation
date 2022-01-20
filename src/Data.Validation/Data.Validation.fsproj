@@ -11,8 +11,6 @@
     <Compile Include="Proof.fs" />
     <Compile Include="VCtx.fs" />
     <Compile Include="Library.fs" />
-    <Compile Include="Primitives.fs" />
-    <Compile Include="ComplexTypes.fs" />
     <None Include="paket.references" />
   </ItemGroup>
 
@@ -20,5 +18,5 @@
     <InternalsVisibleTo Include="$(AssemblyName).Tests" />
   </ItemGroup>
   
-  <Import Project="..\.paket\Paket.Restore.targets" />
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

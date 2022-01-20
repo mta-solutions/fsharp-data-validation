@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net6.0</TargetFramework>
+
+        <IsPackable>false</IsPackable>
+        <GenerateProgramFile>false</GenerateProgramFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="Tests\Utilities.fs" />
+        <Compile Include="Tests\Proof.fs" />
+        <Compile Include="Tests\ValueCtx.fs" />
+        <Compile Include="Tests\VCtx.fs" />
+        <Compile Include="Tests\Library.fs" />
+        <Compile Include="Tests\Fixtures.fs" />
+        <Compile Include="Program.fs" />
+        <None Include="paket.references" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\..\src\Data.Validation\Data.Validation.fsproj" />
+    </ItemGroup>
+    <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+</Project>
