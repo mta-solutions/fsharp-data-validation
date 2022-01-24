@@ -166,3 +166,8 @@ let isInvalid p = isValid p |> not
 let flattenProofs ps = 
     let ps' = ps |> List.map (Proof.map (fun a -> [a]))
     (Valid [], ps') ||> List.fold (Proof.combine (@))
+
+let raiseIfInvalid msg p =
+    match p with
+    | Invalid (gfs,lfs) -> raise (InvalidProofException(msg, gfs, lfs))
+    | Valid a -> a

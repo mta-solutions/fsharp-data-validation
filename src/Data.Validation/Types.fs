@@ -13,3 +13,8 @@ let mkName (n:string): Name option =
         Some { _value = n.Trim()}
 
 type FailureMap<'F> = Map<Name list, 'F list>
+
+type InvalidProofException<'F>(msg, gfs, lfs) =
+    inherit Exception(msg)
+    member this.GlobalFailures = gfs
+    member this.FieldFailures = lfs
