@@ -5,3 +5,4 @@ xunit.runner.visualstudio
 coverlet.collector
 FsCheck
 FsCheck.Xunit
+FsUnit.xUnit
