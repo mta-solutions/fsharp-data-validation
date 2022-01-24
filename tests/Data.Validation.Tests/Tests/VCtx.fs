@@ -12,7 +12,7 @@ let ``map: Transforms a ValidCtx``
     =
     let input = ValidCtx a
     let result = VCtx.map (fun b -> b.ToString()) input
-    Assert.Equal(result, ValidCtx (a.ToString()))
+    Assert.Equal(ValidCtx (a.ToString()), result)
 
 [<Property>]
 let ``map: Transforms a DisputedCtx while preserving failures``
@@ -22,10 +22,10 @@ let ``map: Transforms a DisputedCtx while preserving failures``
     // Todo: make failures of arbitrary length
     let gfs = [gf1]
     let lfs = Map.ofList [([field1], [lf1])]
-    
+
     let input = DisputedCtx (gfs, lfs, a)
     let result = VCtx.map (fun b -> b.ToString()) input
-    Assert.Equal(result, DisputedCtx (gfs, lfs, a.ToString()))
+    Assert.Equal(DisputedCtx (gfs, lfs, a.ToString()), result)
 
 [<Property>]
 let ``map: Makes no changes to a RefutedCtx``
@@ -35,10 +35,10 @@ let ``map: Makes no changes to a RefutedCtx``
     // Todo: make failures of arbitrary length
     let gfs = [gf1]
     let lfs = Map.ofList [([field1], [lf1])]
-    
+
     let input = RefutedCtx (gfs, lfs)
     let result = VCtx.map (fun b -> b.ToString()) input
-    Assert.Equal(result, input)
+    Assert.Equal(input, result)
 
 [<Property>]
 let ``bind: Transforms a global context``
@@ -46,7 +46,7 @@ let ``bind: Transforms a global context``
     =
     let input = ValidCtx a
     let result = VCtx.map (fun b -> b.ToString()) input
-    Assert.Equal(result, ValidCtx (a.ToString()))
+    Assert.Equal(ValidCtx (a.ToString()), result)
 
 [<Property>]
 let ``bind: Makes no changes to a RefutedCtx``
@@ -56,11 +56,11 @@ let ``bind: Makes no changes to a RefutedCtx``
     // Todo: make failures of arbitrary length
     let gfs = [gf1]
     let lfs = Map.ofList [([field1], [lf1])]
-    
+
     let input = RefutedCtx (gfs, lfs)
     let result = VCtx.bind (fun a -> ValidCtx (a + 1)) input
-    Assert.Equal(result, input)
-    
+    Assert.Equal(input, result)
+
 [<Property>]
 let ``bind: Bind a DisputedCtx with a ValidCtx properly, results in DisputedCtx with same failures``
     (a : int, NonWhiteSpaceString n1, lf1 : int, gf1: int)
@@ -69,11 +69,11 @@ let ``bind: Bind a DisputedCtx with a ValidCtx properly, results in DisputedCtx 
     // Todo: make failures of arbitrary length
     let gfs = [gf1]
     let lfs = Map.ofList [([field1], [lf1])]
-    
+
     let input =  DisputedCtx (gfs, lfs, a)
     let result = VCtx.bind (fun a -> ValidCtx (a + 1)) input
-    Assert.Equal(result, DisputedCtx (gfs, lfs, a + 1))
-    
+    Assert.Equal(DisputedCtx (gfs, lfs, a + 1), result)
+
 [<Property>]
 let ``bind: Bind a DisputedCtx with a DisputedCtx properly, results in DisputedCtx with merged failures``
     (a : int, NonWhiteSpaceString n1, lf1 : int, lf2 : int, gf1 : int, gf2 : int)
@@ -85,11 +85,11 @@ let ``bind: Bind a DisputedCtx with a DisputedCtx properly, results in DisputedC
     let gfs2 = [gf2]
     let lfs2 = Map.ofList [([field1], [lf2])]
     let lfsResult = Utilities.mergeFailures lfs lfs2
-    
+
     let input =  DisputedCtx (gfs, lfs, a)
     let result = VCtx.bind (fun a -> DisputedCtx (gfs2, lfs2, a + 1)) input
-    Assert.Equal(result, DisputedCtx ([gf1; gf2], lfsResult, a + 1))
-    
+    Assert.Equal(DisputedCtx ([gf1; gf2], lfsResult, a + 1), result)
+
 [<Property>]
 let ``bind: Bind a DisputedCtx with a RefutedCtx properly, results in RefutedCtx with merged failures``
     (a : int, NonWhiteSpaceString n1, lf1 : int, lf2 : int, gf1 : int, gf2 : int)
@@ -101,9 +101,9 @@ let ``bind: Bind a DisputedCtx with a RefutedCtx properly, results in RefutedCtx
     let gfs2 = [gf2]
     let lfs2 = Map.ofList [([field1], [lf2])]
     let lfsResult = Utilities.mergeFailures lfs lfs2
-    
+
     let input =  DisputedCtx (gfs, lfs, a)
     let result = VCtx.bind (fun _ -> RefutedCtx (gfs2, lfs2)) input
-    Assert.Equal(result, RefutedCtx ([gf1; gf2], lfsResult))
-    
+    Assert.Equal(RefutedCtx ([gf1; gf2], lfsResult), result)
+
 // TODO: VCtxBuilder tests

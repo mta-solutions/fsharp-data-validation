@@ -5,6 +5,7 @@ source https://api.nuget.org/v3/index.json
 nuget FsCheck
 nuget FsCheck.Xunit
 nuget FSharp.Core
+nuget FsUnit.xUnit
 nuget Microsoft.NET.Test.Sdk
 nuget xunit
 nuget xunit.runner.visualstudio

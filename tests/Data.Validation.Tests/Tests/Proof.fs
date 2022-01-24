@@ -14,7 +14,7 @@ let ``map: Does not change the contents of an invalid proof``
     let field1 = mkName n1 |> Option.get
     let input : Proof<string, int> = Invalid ([gf1], Map.ofList [([field1], [lf1])])
     let result = Proof.map (fun a -> a + 1) input
-    Assert.Equal(result, input)
+    Assert.Equal(input, result)
 
 [<Property>]
 let ``map: Converts a Proof<f, a> to a Proof<f, b>``
@@ -22,14 +22,33 @@ let ``map: Converts a Proof<f, a> to a Proof<f, b>``
     =
     let input = Valid n
     let result = Proof.map (fun a -> a.ToString()) input
-    Assert.Equal(result, Valid (n.ToString()))
+    Assert.Equal(Valid (n.ToString()), result)
+
+[<Property>]
+let ``mapInvalid: Does not change the contents of a valid proof``
+    (n : int)
+    =
+    let input = Valid n
+    let result = Proof.mapInvalid (fun a -> a + 1) input
+    Assert.Equal(input, result)
+
+[<Property>]
+let ``mapInvalid: Converts a Proof<f, a> to a Proof<g, a>``
+    (gf1 : int, lf1 : int, NonWhiteSpaceString n1)
+    =
+    let field1 = mkName n1 |> Option.get
+    let input : Proof<int, int> = Invalid ([gf1], Map.ofList [([field1], [lf1])])
+    let result = Proof.mapInvalid (fun a -> a.ToString()) input
+    let expected : Proof<string, int> = Invalid ([gf1.ToString()], Map.ofList [([field1], [lf1.ToString()])])
+    Assert.Equal(expected, result)
+
 
 [<Property(Verbose = false)>]
 let ``combine: two valid proof results in valid proof`` (a : int, b : int) =
     let input1 = Valid a
     let input2 = Valid b
     let result = Proof.combine (+) input1 input2
-    Assert.Equal(result, Valid (a + b))
+    Assert.Equal(Valid (a + b), result)
 
 [<Property(Verbose = false)>]
 let ``combine: one valid and one invalid proof results in invalid proof``
@@ -40,8 +59,8 @@ let ``combine: one valid and one invalid proof results in invalid proof``
     let input2 =
         Invalid ([b], Map.ofList [([field1], [d])])
     let result = Proof.combine (+) input1 input2
-    Assert.Equal(result, input2)
-    
+    Assert.Equal(input2, result)
+
 [<Property>]
 let ``combine: one invalid and one valid proof results in invalid proof``
     (a : string, NonWhiteSpaceString b, c : string, d: int)
@@ -51,8 +70,8 @@ let ``combine: one invalid and one valid proof results in invalid proof``
         Invalid ([a], Map.ofList [([field1], [c])])
     let input2 = Valid d
     let result = Proof.combine (+) input1 input2
-    Assert.Equal(result, input1)
-    
+    Assert.Equal(input1, result)
+
 [<Property>]
 let ``combine: two invalid proofs results in concatenated errors``
     (gf1, gf2, NonWhiteSpaceString n1, NonWhiteSpaceString n2, lf1 : string, lf2 : string, lf3 : string)
@@ -66,14 +85,14 @@ let ``combine: two invalid proofs results in concatenated errors``
     let result = Proof.combine (+) input1 input2
     let expected =
         Invalid ([gf1; gf2], Map.ofList [([field1], [lf1; lf2]); ([field2], [lf3])])
-    Assert.Equal(result, expected)
+    Assert.Equal(expected, result)
 
 type MyRecord = { MyName: string; MyInt: int; }
-    
+
 [<Fact>]
 let ``serialize: valid proof of type T should result in JSON representing T`` () =
     // Arrange
-    let sot = Valid ({ MyName = "John Smith"; MyInt = 42 })
+    let sot = Valid { MyName = "John Smith"; MyInt = 42 }
 
     // Act
     let json = JsonSerializer.Serialize(sot)
@@ -81,16 +100,16 @@ let ``serialize: valid proof of type T should result in JSON representing T`` ()
     //Assert
     Assert.Equal("{\"MyName\":\"John Smith\",\"MyInt\":42}", json)
 
-type MyFailures = 
+type MyFailures =
     | EmptyName
     | IntToSmall
     | NameAndNumberDoNotMatch of string * int
-    override this.ToString() = 
+    override this.ToString() =
         match this with
         | EmptyName                     -> "MyName cannot be empty."
         | IntToSmall                    -> "MyInt cannot be less than 42."
         | NameAndNumberDoNotMatch (n,i) -> sprintf "%s's number can only be 42, not %i." n i
-    
+
 [<Fact>]
 let ``serialize: invalid proof of type T should result in JSON representing the failures`` () =
     // Arrange

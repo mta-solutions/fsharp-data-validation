@@ -12,7 +12,7 @@ let ``getValue: Retrieves the value from a global context``
     =
     let input = Global gf1
     let result = ValueCtx.getValue input
-    Assert.Equal(result, gf1)
+    Assert.Equal(gf1, result)
 
 [<Property>]
 let ``getValue: Retrieves the value from a field context``
@@ -21,7 +21,7 @@ let ``getValue: Retrieves the value from a field context``
     let field1 = mkName n1 |> Option.get
     let input = Field (field1, lf1)
     let result = ValueCtx.getValue input
-    Assert.Equal(result, lf1)
+    Assert.Equal(lf1, result)
 
 [<Property>]
 let ``setValue: Sets the value of a global context``
@@ -29,7 +29,7 @@ let ``setValue: Sets the value of a global context``
     =
     let input = Global gf1
     let result = ValueCtx.setValue input gf2
-    Assert.Equal(result, Global gf2)
+    Assert.Equal(Global gf2, result)
 
 [<Property>]
 let ``setValue: Sets the value of a field context``
@@ -38,7 +38,7 @@ let ``setValue: Sets the value of a field context``
     let field1 = mkName n1 |> Option.get
     let input = Field (field1, lf1)
     let result = ValueCtx.setValue input lf2
-    Assert.Equal(result, Field (field1, lf2))
+    Assert.Equal(Field (field1, lf2), result)
 
 [<Property>]
 let ``map: Transforms a global context``
@@ -46,7 +46,7 @@ let ``map: Transforms a global context``
     =
     let input = Global gf1
     let result = ValueCtx.map (fun a -> a.ToString()) input
-    Assert.Equal(result, Global (gf1.ToString()))
+    Assert.Equal(Global (gf1.ToString()), result)
 
 [<Property>]
 let ``map: Transforms a field context while preserving the field name``
@@ -55,7 +55,7 @@ let ``map: Transforms a field context while preserving the field name``
     let field1 = mkName n1 |> Option.get
     let input = Field (field1, lf1)
     let result = ValueCtx.map (fun a -> a.ToString()) input
-    Assert.Equal(result, Field (field1, lf1.ToString()))
+    Assert.Equal(Field (field1, lf1.ToString()), result)
 
 [<Property>]
 let ``bind: Transforms a global context``
@@ -64,7 +64,7 @@ let ``bind: Transforms a global context``
     let field1 = mkName n1 |> Option.get
     let input = Global gf1
     let result = ValueCtx.bind (fun a -> Field (field1, a)) input
-    Assert.Equal(result, Field (field1, gf1))
+    Assert.Equal(Field (field1, gf1), result)
 
 [<Property>]
 let ``bind: Transforms a field context``
@@ -73,4 +73,4 @@ let ``bind: Transforms a field context``
     let field1 = mkName n1 |> Option.get
     let input = Field (field1, lf1)
     let result = ValueCtx.bind Global input
-    Assert.Equal(result, Global lf1)
+    Assert.Equal(Global lf1, result)

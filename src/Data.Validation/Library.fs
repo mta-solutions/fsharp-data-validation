@@ -27,31 +27,31 @@ let isRequired (f:'F) (ma:'A option): Result<'A, 'F> =
     | Some a -> Ok a
 
 /// Checks that a `Option` value is a `Some` when some condition is true.
-/// If the condition is met and the value is `None`, 
+/// If the condition is met and the value is `None`,
 /// it adds the given failure to the result and validation continues.
 let isRequiredWhen f b (ma:'A option): 'F option =
     match b with
     | false -> None
-    | true -> 
+    | true ->
         match ma with
         | None   -> Some f
         | Some _ -> None
 
 /// Checks that a `Option` value is a `Some` when some condition is false.
-/// If the condition is not met and the value is `Some`, 
+/// If the condition is not met and the value is `Some`,
 /// it adds the given failure to the result and validation continues.
 let isRequiredUnless f b v = isRequiredWhen f (not b) v
 
 /// Checks that a `Result` value is a `Error`.
 /// If not, it adds the given failure to the result and validation end.
-let isError e = 
+let isError e =
     match e with
     | Error _   -> true
     | Ok _      -> false
 
 /// Checks that a `Result` value is a `Ok`.
 /// If not, it adds the given failure to the result and validation end.
-let isOk e = 
+let isOk e =
     match e with
     | Error _   -> false
     | Ok _      -> true
@@ -84,19 +84,19 @@ let isEqual = (=)
 /// If equal, it adds the given failure to the result and validation continues.
 let isNotEqual a b = a = b |> not
 
-/// Checks that a value is less than another.
+/// Checks that b is less than a, as b is our validation input.
 /// If not, it adds the given failure to the result and validation continues.
 let isLessThan = (>)
 
-/// Checks that a value is greater than another.
+/// Checks that b is greater than a, as b is our validation input.
 /// If not, it adds the given failure to the result and validation continues.
 let isGreaterThan = (<)
 
-/// Checks that a value is less than or equal to another.
+/// Checks that b is less than or equal to a, as b is our validation input.
 /// If not, it adds the given failure to the result and validation continues.
 let isLessThanOrEqual = (>=)
 
-/// Checks that a value is greater than or equal to another.
+/// Checks that b is greater than or equal to a, as b is our validation input.
 /// If not, it adds the given failure to the result and validation continues.
 let isGreaterThanOrEqual = (<=)
 
@@ -111,7 +111,7 @@ let doesNotHaveElem e (a:#seq<_>) = a.Contains(e) |> not
 /// If any element is valid, the entire value is valid.
 let ifAny (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
     let xs = ValueCtx.getValue v
-    let fs = List.ofSeq (query { for x in xs do select (fn x) } |> Utilities.catOptions)
+    let fs = List.ofSeq (Seq.map fn xs |> Utilities.catOptions)
     if fs.Count() = xs.Count()
         then validation { disputeMany v fs }
         else validation.Return(v)
@@ -119,7 +119,7 @@ let ifAny (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
 /// Every element must be valid.
 let ifAll (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
     let xs = ValueCtx.getValue v
-    let fs = List.ofSeq (query { for x in xs do select (fn x) } |> Utilities.catOptions)
+    let fs = List.ofSeq (Seq.map fn xs |> Utilities.catOptions)
     match fs with
     | [] -> validation.Return(v)
     | _  -> validation { disputeMany v fs }
@@ -127,17 +127,17 @@ let ifAll (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
 /// Validate each element with a given function.
 let ifEach fn v =
     let xs = ValueCtx.getValue v
-    let es = List.ofSeq (query { for x in xs do select (fn x) })
+    let es = Seq.map fn xs
     match List.ofSeq(Utilities.errors es) with
     | []  -> validation.Return(Utilities.oks es |> ValueCtx.setValue v)
     | fs -> validation { refuteMany v fs }
 
 /// Validate each element with a given function.
 let ifEachProven fn v =
-    let vs = ValueCtx.getValue v |> Seq.map (fun a -> fn a |> Proof.map (fun b -> Seq.singleton(b)))
-    let p = (Proof.Invalid([], Map.empty), vs) ||> Seq.fold (fun acc p' ->
+    let vs = ValueCtx.getValue v |> Seq.map (fun a -> fn a |> Proof.map Seq.singleton)
+    let p = (Proof.Valid(Seq.empty), vs) ||> Seq.fold (fun acc p' ->
         match p' with
-        | Valid b              -> 
+        | Valid b              ->
             match acc with
             | Valid b'              -> Valid (Seq.append b' b)
             | Invalid (gfs',lfs')   -> Invalid (gfs', lfs')
@@ -148,13 +148,13 @@ let ifEachProven fn v =
     )
     match p with
         | Valid es -> validation.Return(ValueCtx.setValue v es)
-        | Invalid (gfs, lfs) -> 
+        | Invalid (gfs, lfs) ->
             match v with
             | Global _      -> RefutedCtx (gfs, lfs)
             | Field (n,_)   -> RefutedCtx ([], Utilities.mergeFailures lfs (Map.ofList [ ([n], gfs) ]))
 
 /// tests if a 'Proof' is valid.
-let isValid p = 
+let isValid p =
     match p with
     | Valid _   -> true
     | Invalid _ -> false
@@ -163,7 +163,7 @@ let isValid p =
 let isInvalid p = isValid p |> not
 
 /// Flatten a list of proofs into a proof of the list
-let flattenProofs ps = 
+let flattenProofs ps =
     let ps' = ps |> List.map (Proof.map (fun a -> [a]))
     (Valid [], ps') ||> List.fold (Proof.combine (@))
 

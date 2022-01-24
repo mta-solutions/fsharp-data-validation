@@ -14,7 +14,7 @@ let mkName (n:string): Name option =
 
 type FailureMap<'F> = Map<Name list, 'F list>
 
-type InvalidProofException<'F>(msg, gfs, lfs) =
+type InvalidProofException<'F>(msg, gfs : 'F list, lfs : FailureMap<'F>) =
     inherit Exception(msg)
     member this.GlobalFailures = gfs
     member this.FieldFailures = lfs
