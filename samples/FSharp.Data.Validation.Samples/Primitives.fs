@@ -1,10 +1,10 @@
-﻿module Data.Validation.Samples.Primitives
+﻿module FSharp.Data.Validation.Samples.Primitives
 
 open System.Text.RegularExpressions
 
-open Data.Validation
+open FSharp.Data.Validation
 
-type MyFailures = 
+type MyFailures =
     | NameFailure
     | LengthFailure
     | EmailFailure
@@ -23,7 +23,7 @@ let mkUsername s =
 
 type EmailAddress = { unEmailAddress : string }
 
-let mkEmailAddress s = 
+let mkEmailAddress s =
     validation {
         withValue s
         disputeWithFact EmailFailure (fun s -> Regex.IsMatch(s, "[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+"))
@@ -41,15 +41,14 @@ let mkPhoneNumber s =
     } |> fromVCtx
 
 type ContactPreference =
-    | Email 
+    | Email
     | Phone
 
 type ZipCode = { unZipCode : string }
 
-let mkZipCode s = 
+let mkZipCode s =
     validation {
         withValue s
         disputeWithFact RequiredFailure isNotNull
         whenProven (fun v -> { unZipCode = v })
     } |> fromVCtx
-

@@ -12,7 +12,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\Data.Validation\Data.Validation.fsproj" />
+        <ProjectReference Include="..\..\src\FSharp.Data.Validation\FSharp.Data.Validation.fsproj" />
     </ItemGroup>
     <Import Project="..\..\.paket\Paket.Restore.targets" />
 

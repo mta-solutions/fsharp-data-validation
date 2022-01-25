@@ -1,10 +1,10 @@
-﻿module Data.Validation.Tests.VCtx
+﻿module FSharp.Data.Validation.Tests.VCtx
 
 open Xunit
 open FsCheck
 open FsCheck.Xunit
 
-open Data.Validation
+open FSharp.Data.Validation
 
 [<Property>]
 let ``map: Transforms a ValidCtx``

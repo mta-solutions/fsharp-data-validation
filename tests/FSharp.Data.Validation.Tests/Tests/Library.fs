@@ -1,11 +1,11 @@
-﻿module Data.Validation.Tests.Library
+﻿module FSharp.Data.Validation.Tests.Library
 
 open Xunit
 open FsCheck
 open FsCheck.Xunit
 open FsUnit.Xunit
 
-open Data.Validation
+open FSharp.Data.Validation
 
 [<Property>]
 let ``fromVCTx: Transforms a ValidCtx to a Valid Proof``

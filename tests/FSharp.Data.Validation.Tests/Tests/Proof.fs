@@ -1,11 +1,11 @@
-module Data.Validation.Tests.Proof
+module FSharp.Data.Validation.Tests.Proof
 
 open Xunit
 open FsCheck
 open FsCheck.Xunit
 open System.Text.Json
 
-open Data.Validation
+open FSharp.Data.Validation
 
 [<Property>]
 let ``map: Does not change the contents of an invalid proof``

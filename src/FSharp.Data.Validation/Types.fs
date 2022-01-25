@@ -1,5 +1,5 @@
 ﻿[<AutoOpen>]
-module Data.Validation.Types
+module FSharp.Data.Validation.Types
 
 open System
 

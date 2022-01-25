@@ -1,4 +1,4 @@
-﻿namespace Data.Validation
+﻿namespace FSharp.Data.Validation
 
 open System
 open System.Text.Json
@@ -24,7 +24,7 @@ and ProofConverter<'F, 'A>() =
             | 1 -> str.ToLower()
             | _ -> sprintf "%c%s" (Char.ToLowerInvariant(str[0])) (str.Substring(1))
         override this.Read(reader: byref<Utf8JsonReader>, typ, opts) = base.Read(&reader, typ, opts)
-        override this.Write(writer, proof, opts) = 
+        override this.Write(writer, proof, opts) =
             match proof with
             | Valid a               -> JsonSerializer.Serialize(writer, a, opts)
             | Invalid (gfs, lfs)    ->
@@ -47,16 +47,16 @@ and ProofConverter<'F, 'A>() =
                 writer.Flush()
 and ProofConverterFactory() =
     inherit JsonConverterFactory()
-        override this.CanConvert(typ) = 
+        override this.CanConvert(typ) =
             typ.GetGenericTypeDefinition() = typedefof<Proof<_,_>>
-        override this.CreateConverter(typ, opts) = 
+        override this.CreateConverter(typ, opts) =
             let tArgs = typ.GetGenericArguments()
             let t = typedefof<ProofConverter<_,_>>.MakeGenericType(tArgs)
             Activator.CreateInstance(t) :?> JsonConverter
 
 module Proof =
     /// Applies function to the proof value
-    let map fn p = 
+    let map fn p =
         match p with
         | Invalid (gfs, lfs)    -> Invalid (gfs, lfs)
         | Valid a               -> Valid (fn a)
@@ -66,7 +66,7 @@ module Proof =
         match p with
         | Invalid (gfs, lfs) -> Invalid (List.map fn gfs, Map.map (fun _ s -> List.map fn s) lfs)
         | Valid a -> Valid a
-    
+
     /// Combines two proofs using the provided function
     /// If given `Invalid` proofs, aggregates failures
     let combine fn p1 p2 =

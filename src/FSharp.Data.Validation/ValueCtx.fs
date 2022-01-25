@@ -1,4 +1,4 @@
-﻿namespace Data.Validation
+﻿namespace FSharp.Data.Validation
 
 type ValueCtx<'a> =
     | Field of Name * 'a
@@ -14,9 +14,9 @@ module ValueCtx =
         match v with
         | Field (n, _a) -> Field (n, b)
         | Global _a     -> Global b
-        
+
     let map (fn:'A -> 'B) (v:ValueCtx<'A>): ValueCtx<'B> =
         getValue v |> fn |> setValue v
 
-    let bind (fn:'A -> ValueCtx<'B>) (v:ValueCtx<'A>): ValueCtx<'B> = 
+    let bind (fn:'A -> ValueCtx<'B>) (v:ValueCtx<'A>): ValueCtx<'B> =
         getValue v |> fn

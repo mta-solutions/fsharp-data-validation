@@ -8,11 +8,11 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		paket.dependencies = paket.dependencies
 	EndProjectSection
 EndProject
-Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "Data.Validation", "src\Data.Validation\Data.Validation.fsproj", "{F15EC412-13D6-4B4C-ACB1-D2DFBC6D3D0B}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "FSharp.Data.Validation", "src\FSharp.Data.Validation\FSharp.Data.Validation.fsproj", "{F15EC412-13D6-4B4C-ACB1-D2DFBC6D3D0B}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Data.Validation.Tests", "tests\Data.Validation.Tests\Data.Validation.Tests.fsproj", "{514C35F5-E85D-4D05-99B8-BCC66453BA28}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Data.Validation.Tests", "tests\FSharp.Data.Validation.Tests\FSharp.Data.Validation.Tests.fsproj", "{514C35F5-E85D-4D05-99B8-BCC66453BA28}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Data.Validation.Samples", "samples\Data.Validation.Samples\Data.Validation.Samples.fsproj", "{AE3EAA51-E31F-4375-BB07-06A729BC08C6}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FSharp.Data.Validation.Samples", "samples\FSharp.Data.Validation.Samples\FSharp.Data.Validation.Samples.fsproj", "{AE3EAA51-E31F-4375-BB07-06A729BC08C6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

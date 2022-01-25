@@ -1,5 +1,5 @@
 ﻿[<AutoOpen>]
-module Data.Validation.Default
+module FSharp.Data.Validation.Default
 
 open System.Collections.Generic
 open System.Linq
