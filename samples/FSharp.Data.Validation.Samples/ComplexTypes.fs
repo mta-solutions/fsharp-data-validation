@@ -1,11 +1,11 @@
-﻿module Data.Valdation.Samples.ComplexTypes
+﻿module FSharp.Data.Valdation.Samples.ComplexTypes
 
-open Data.Validation
+open FSharp.Data.Validation
 
-open Data.Validation.Samples.Primitives
+open FSharp.Data.Validation.Samples.Primitives
 
 // Model
-type User = { 
+type User = {
         Username          : Username;
         EmailAddress      : EmailAddress option;
         PhoneNumber       : PhoneNumber option;
@@ -14,14 +14,14 @@ type User = {
     }
 
 // View Model
-type UserVM = 
+type UserVM =
     { Username          : string option
       EmailAddress      : string option
       PhoneNumber       : string option
       ContactPreference : ContactPreference option
-      ZipCode           : string option } 
+      ZipCode           : string option }
     interface IValidatable<MyFailures, User> with
-        member this.Validation() = 
+        member this.Validation() =
             validation {
                 let! cp = validation {
                     withField (mkName (nameof this.ContactPreference)) this.ContactPreference

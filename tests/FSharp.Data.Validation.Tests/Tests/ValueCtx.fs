@@ -1,10 +1,10 @@
-﻿module Data.Validation.Tests.ValueCtx
+﻿module FSharp.Data.Validation.Tests.ValueCtx
 
 open Xunit
 open FsCheck
 open FsCheck.Xunit
 
-open Data.Validation
+open FSharp.Data.Validation
 
 [<Property>]
 let ``getValue: Retrieves the value from a global context``

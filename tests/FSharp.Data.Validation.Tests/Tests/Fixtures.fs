@@ -1,4 +1,4 @@
-﻿module Data.Validation.Tests.Fixtures
+﻿module FSharp.Data.Validation.Tests.Fixtures
 
 open System.Text.RegularExpressions
 
@@ -6,7 +6,7 @@ open Xunit
 open FsCheck
 open FsCheck.Xunit
 
-open Data.Validation
+open FSharp.Data.Validation
 
 // Type that is required to be greater than 1
 type UserId = { unUserId : int }
@@ -20,19 +20,19 @@ let mkUserId s =
         disputeWithFact LessThanOneFailure (isGreaterThanOrEqual 1)
         whenProven (fun v -> { unUserId = v } )
     } |> fromVCtx
-    
+
 [<Property>]
 let ``mkUserId: Returns Valid when value is greater than or equal to 1`` (PositiveInt a) =
     Assert.Equal(Valid { unUserId = a }, mkUserId a)
-    
+
 [<Property>]
 let ``mkUserId: Returns LessThanOneFailure when value is negative`` (NegativeInt a) =
     Assert.Equal(Invalid ([LessThanOneFailure], Map.empty), mkUserId a)
-    
+
 [<Fact>]
 let ``mkUserId: Returns LessThanOneFailure when value is zero`` () =
     Assert.Equal(Invalid ([LessThanOneFailure], Map.empty), mkUserId 0)
-    
+
 // Type that is required to be 7 length and only contain numbers
 type PhoneNumber = { unPhoneNumber : string }
 
@@ -47,20 +47,20 @@ let mkPhoneNumber s =
         disputeWithFact NonDigitFailure (fun a -> Regex.IsMatch(a, "^[0-9]*$"))
         whenProven (fun v -> { unPhoneNumber = v })
     } |> fromVCtx
-    
+
 [<Fact>]
 let ``mkPhoneNumber: Returns Valid when value passes criteria`` () =
     let a = "1231234"
     Assert.Equal(Valid { unPhoneNumber = a }, mkPhoneNumber "1231234")
-    
+
 [<Fact>]
 let ``mkPhoneNumber: Returns LengthFailure when value is too short`` () =
     Assert.Equal(Invalid ([LengthFailure], Map.empty), mkPhoneNumber "1")
-    
+
 [<Fact>]
 let ``mkPhoneNumber: Returns NonDigitFailure when value contains non-numeric characters`` () =
     Assert.Equal(Invalid ([NonDigitFailure], Map.empty), mkPhoneNumber "123134!")
-    
+
 [<Fact>]
 let ``mkPhoneNumber: Returns both failures when wrong length and contains non-numeric characters`` () =
     Assert.Equal(Invalid ([LengthFailure; NonDigitFailure], Map.empty), mkPhoneNumber "-12312345678!")
@@ -71,7 +71,7 @@ type EmailAddress = { unEmailAddress : string }
 type EmailAddressFailures =
     | InvalidEmail
 
-let mkEmailAddress s = 
+let mkEmailAddress s =
     validation {
         withValue s
         disputeWithFact InvalidEmail (fun s -> Regex.IsMatch(s, "^[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+$"))
@@ -82,14 +82,14 @@ let mkEmailAddress s =
 let ``mkEmailAddress: Returns Valid when value passes criteria`` () =
     let a = "test@test.com"
     Assert.Equal(Valid { unEmailAddress = a }, mkEmailAddress a)
-    
+
 [<Fact>]
 let ``mkEmailAddress: Returns InvalidEmail when invalid`` () =
     Assert.Equal(Invalid ([InvalidEmail], Map.empty), mkEmailAddress "test@test")
 
 // Record that must include a userid and a phone number
 type ContactPreference =
-    | Email 
+    | Email
     | Phone
 
 type UserContact = {
@@ -153,7 +153,7 @@ type UserContactDTO =
                 }
                 return { UserId = uid; PhoneNumber = pn; EmailAddress = ea; ContactPreference = cp }
             }
-            
+
 [<Property>]
 let ``UserContactDTO: Validated when all values pass criteria`` (PositiveInt uid) =
     let phone = None
@@ -172,7 +172,7 @@ let ``UserContactDTO: Validated when all values pass criteria`` (PositiveInt uid
         ContactPreference = cp
     }
     Assert.Equal(expected, validate input)
-    
+
 [<Property>]
 let ``UserContactDTO: Returns single failure when email is invalid`` (PositiveInt uid) =
     let phone = None
@@ -191,7 +191,7 @@ let ``UserContactDTO: Returns single failure when email is invalid`` (PositiveIn
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
             ])
     Assert.Equal(expected, validate input)
-    
+
 [<Property>]
 let ``UserContactDTO: Returns multiple failures when email and userid are invalid`` (NegativeInt uid) =
     let phone = None
@@ -211,7 +211,7 @@ let ``UserContactDTO: Returns multiple failures when email and userid are invali
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
             ])
     Assert.Equal(expected, validate input)
-    
+
 [<Fact>]
 let ``UserContactDTO: Returns multiple failures when email is invalid and userid is missing`` () =
     let phone = None
@@ -231,7 +231,7 @@ let ``UserContactDTO: Returns multiple failures when email is invalid and userid
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
             ])
     Assert.Equal(expected, validate input)
-    
+
 [<Fact>]
 let ``UserContactDTO: Returns multiple failures and global when email is invalid and userid is 0`` () =
     let phone = None
@@ -251,7 +251,7 @@ let ``UserContactDTO: Returns multiple failures and global when email is invalid
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
             ])
     Assert.Equal(expected, validate input)
-    
+
 [<Property>]
 let ``UserContactDTO: Returns multiple failures when email is invalid and contact preference is phone`` (PositiveInt uid) =
     let phone = None

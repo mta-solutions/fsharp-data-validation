@@ -1,4 +1,4 @@
-﻿namespace Data.Validation
+﻿namespace FSharp.Data.Validation
 
 type VCtx<'F, 'A> =
     internal
