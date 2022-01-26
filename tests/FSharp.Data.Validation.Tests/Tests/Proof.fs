@@ -74,10 +74,10 @@ let ``combine: one invalid and one valid proof results in invalid proof``
 
 [<Property>]
 let ``combine: two invalid proofs results in concatenated errors``
-    (gf1, gf2, NonWhiteSpaceString n1, NonWhiteSpaceString n2, lf1 : string, lf2 : string, lf3 : string)
+    (gf1, gf2, lf1 : string, lf2 : string, lf3 : string)
     =
-    let field1 = mkName n1 |> Option.get
-    let field2 = mkName n2 |> Option.get
+    let field1 = mkName "Field1" |> Option.get
+    let field2 = mkName "Field2" |> Option.get
     let input1 =
         Invalid ([gf1], Map.ofList [([field1], [lf1])])
     let input2 =

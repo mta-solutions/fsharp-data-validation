@@ -17,7 +17,6 @@ let errors l =
         | Ok _ -> acc
     )
 
-// Todo: Pretty sure this is doing something weird with failure strings that have whitespace/control characters
 let mergeFailures (a:FailureMap<'F>) (b:FailureMap<'F>): FailureMap<'F> =
     let bs = Map.toList b
     let rec mergeInto (am:FailureMap<'F>) (bs':(Name list * 'F list) list) =

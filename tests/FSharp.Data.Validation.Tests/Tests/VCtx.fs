@@ -295,7 +295,7 @@ let ``VCtxBuilder.Optional: Optional of a RefutedCtx returns RefutedCtx``
 
 [<Property>]
 let ``VCtxBuilder.Optional: Optional of a ValidCtx with None returns ValidCtx``
-    (NonWhiteSpaceString n1, a: int)
+    (NonWhiteSpaceString n1)
     =
     let field1 = mkName n1 |> Option.get
     let input = ValidCtx (Field (field1, None))
@@ -303,7 +303,7 @@ let ``VCtxBuilder.Optional: Optional of a ValidCtx with None returns ValidCtx``
 
 [<Property>]
 let ``VCtxBuilder.Optional: Optional of a ValidCtx with Some valid returns ValidCtx``
-    (NonWhiteSpaceString n1, a: int)
+    (NonWhiteSpaceString n1)
     =
     let field1 = mkName n1 |> Option.get
     let input = ValidCtx (Field (field1, Some 5))
@@ -330,39 +330,39 @@ let ``VCtxBuilder.Optional: Optional of a ValidCtx with Some refuted returns Ref
 
 [<Property>]
 let ``VCtxBuilder.Optional: Optional of a DisputedCtx with None returns DisputedCtx``
-    (NonWhiteSpaceString n1, NonWhiteSpaceString n2, lf1 : int, gf1 : int)
+    (lf1 : int, gf1 : int)
     =
-    let field1 = mkName n1 |> Option.get
-    let field2 = mkName n2 |> Option.get
-    let input = DisputedCtx ([gf1], Map.ofList [([field1], [gf1])], Field (field2, None))
+    let field1 = mkName "Field1" |> Option.get
+    let field2 = mkName "Field2" |> Option.get
+    let input = DisputedCtx ([gf1], Map.ofList [([field1], [lf1])], Field (field2, None))
     Assert.Equal(input, VCtxBuilder().Optional(input, mk5))
 
 [<Property>]
 let ``VCtxBuilder.Optional: Optional of a DisputedCtx with Some valid returns DisputedCtx``
-    (NonWhiteSpaceString n1, NonWhiteSpaceString n2, lf1 : int, gf1 : int)
+    (lf1 : int, gf1 : int)
     =
-    let field1 = mkName n1 |> Option.get
-    let field2 = mkName n2 |> Option.get
-    let input = DisputedCtx ([gf1], Map.ofList [([field1], [gf1])], Field (field2, Some 5))
-    let expected = DisputedCtx ([gf1], Map.ofList [([field1], [gf1])], Global (Some 5))
+    let field1 = mkName "Field1" |> Option.get
+    let field2 = mkName "Field2" |> Option.get
+    let input = DisputedCtx ([gf1], Map.ofList [([field1], [lf1])], Field (field2, Some 5))
+    let expected = DisputedCtx ([gf1], Map.ofList [([field1], [lf1])], Global (Some 5))
     Assert.Equal(expected, VCtxBuilder().Optional(input, mk5))
 
 [<Property>]
 let ``VCtxBuilder.Optional: Optional of a DisputedCtx with Some disputed returns DisputedCtx``
-    (NonWhiteSpaceString n1, NonWhiteSpaceString n2, lf1 : int, gf1 : int)
+    (lf1 : int, gf1 : int)
     =
-    let field1 = mkName n1 |> Option.get
-    let field2 = mkName n2 |> Option.get
-    let input = DisputedCtx ([gf1], Map.ofList [([field1], [gf1])], Field (field2, Some 1))
-    let expected = DisputedCtx ([gf1], Map.ofList [([field1], [gf1]); ([field2], [-5])], Global (Some 1))
+    let field1 = mkName "Field1" |> Option.get
+    let field2 = mkName "Field2" |> Option.get
+    let input = DisputedCtx ([gf1], Map.ofList [([field1], [lf1])], Field (field2, Some 1))
+    let expected = DisputedCtx ([gf1], Map.ofList [([field1], [lf1]); ([field2], [-5])], Global (Some 1))
     Assert.Equal(expected, VCtxBuilder().Optional(input, mk5))
 
 [<Property>]
 let ``VCtxBuilder.Optional: Optional of a DisputedCtx with Some refuted returns RefutedCtx``
-    (NonWhiteSpaceString n1, NonWhiteSpaceString n2, lf1 : int, gf1 : int)
+    (lf1 : int, gf1 : int)
     =
-    let field1 = mkName n1 |> Option.get
-    let field2 = mkName n2 |> Option.get
-    let input = DisputedCtx ([gf1], Map.ofList [([field1], [gf1])], Field (field2, Some 1))
-    let expected = RefutedCtx ([gf1], Map.ofList [([field1], [gf1]); ([field2], [-5])])
+    let field1 = mkName "Field1" |> Option.get
+    let field2 = mkName "Field2" |> Option.get
+    let input = DisputedCtx ([gf1], Map.ofList [([field1], [lf1])], Field (field2, Some 1))
+    let expected = RefutedCtx ([gf1], Map.ofList [([field1], [lf1]); ([field2], [-5])])
     Assert.Equal(expected, VCtxBuilder().Optional(input, mk5r))
