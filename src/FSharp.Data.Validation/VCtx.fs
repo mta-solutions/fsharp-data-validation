@@ -33,14 +33,7 @@ module VCtx =
 
 type VCtxBuilder() =
     member this.Bind(v:VCtx<'F, 'A>, fn:'A -> VCtx<'F, 'B>): VCtx<'F, 'B> =
-        match v with
-        | ValidCtx a                -> fn a
-        | RefutedCtx (gfs, lfs)     -> RefutedCtx (gfs, lfs)
-        | DisputedCtx (gfs, lfs, a) ->
-            match fn a with
-            | ValidCtx b                    -> DisputedCtx (gfs, lfs, b)
-            | RefutedCtx (gfs', lfs')       -> RefutedCtx (List.append gfs gfs', Utilities.mergeFailures lfs lfs')
-            | DisputedCtx (gfs', lfs', b)   -> DisputedCtx (List.append gfs gfs', Utilities.mergeFailures lfs lfs', b)
+        VCtx.bind fn v
 
     member this.MergeSources(v1: VCtx<'F, 'A>, v2: VCtx<'F, 'B>) =
         match (v1, v2) with
