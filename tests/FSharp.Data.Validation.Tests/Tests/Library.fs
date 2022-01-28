@@ -316,7 +316,7 @@ let mk5 i =
     validation {
         withValue i
         disputeWithFact NotFiveError (isEqual 5)
-        whenProven (fun _ -> Five)
+        qed (fun _ -> Five)
     } |> fromVCtx
 
 let is5 i =

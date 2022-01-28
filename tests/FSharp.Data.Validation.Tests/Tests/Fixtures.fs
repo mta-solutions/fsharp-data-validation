@@ -18,7 +18,7 @@ let mkUserId s =
     validation {
         withValue s
         disputeWithFact LessThanOneFailure (isGreaterThanOrEqual 1)
-        whenProven (fun v -> { unUserId = v } )
+        qed (fun v -> { unUserId = v } )
     } |> fromVCtx
 
 [<Property>]
@@ -45,7 +45,7 @@ let mkPhoneNumber s =
         withValue s
         disputeWithFact LengthFailure (isLength 7)
         disputeWithFact NonDigitFailure (fun a -> Regex.IsMatch(a, "^[0-9]*$"))
-        whenProven (fun v -> { unPhoneNumber = v })
+        qed (fun v -> { unPhoneNumber = v })
     } |> fromVCtx
 
 [<Fact>]
@@ -75,7 +75,7 @@ let mkEmailAddress s =
     validation {
         withValue s
         disputeWithFact InvalidEmail (fun s -> Regex.IsMatch(s, "^[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+$"))
-        whenProven (fun v -> { unEmailAddress = v })
+        qed (fun v -> { unEmailAddress = v })
     } |> fromVCtx
 
 [<Fact>]

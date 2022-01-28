@@ -1,4 +1,6 @@
-﻿namespace FSharp.Data.Validation
+namespace FSharp.Data.Validation
+open System.Linq.Expressions
+open System
 
 type VCtx<'F, 'A> =
     internal
@@ -62,29 +64,32 @@ type VCtxBuilder() =
     member this.Zero() = ValidCtx ()
 
     /// Performs some given validation using a 'Field' with a given name and value.
-    [<CustomOperation("withField")>]
-    member this.WithField(c, n:Name, b) =
+    [<CustomOperation("withField", MaintainsVariableSpaceUsingBind=true)>]
+    member this.WithField(c:VCtx<'F, 'A>, n:Name, b:'B) =
         c |> VCtx.map (fun _v -> Field (n, b))
 
     /// Performs some given validation using a 'Field' with a given name and value.
-    [<CustomOperation("withField")>]
-    member this.WithField(c, mn:Name option, b) =
+    [<CustomOperation("withField", MaintainsVariableSpaceUsingBind=true)>]
+    member this.WithField(c:VCtx<'F, 'A>, mn:Name option, b:'B) =
         match mn with
         | None -> this.WithValue(c, b)
         | Some n -> this.WithField(c, n, b)
+    
+    /// Performs some given validation using a 'Field' from a given selector.
+    [<CustomOperation("withField", MaintainsVariableSpaceUsingBind=true)>]
+    member this.WithField(c:VCtx<'F, 'A>, selector:Expression<Func<'B>>) =
+        let exp = selector.Body :?> MemberExpression
+        let mn = mkName exp.Member.Name
+        let v = selector.Compile().Invoke()
+        this.WithField(c, mn, v)
 
     /// Performs some given validation using a 'Global' with a given value.
-    [<CustomOperation("withValue")>]
+    [<CustomOperation("withValue", MaintainsVariableSpaceUsingBind=true)>]
     member this.WithValue(c, b) =
-        c |> VCtx.map (fun _v -> Global b)
+        c |> VCtx.bind (fun _ -> this.Return(Global b))
 
     /// Maps a proven value with a given function.
-    [<CustomOperation("whenProven")>]
-    member this.WhenProven(c:VCtx<'F, ValueCtx<'A>>, fn:'A -> 'B): VCtx<'F, 'B> =
-        c |> VCtx.map (fun a -> ValueCtx.getValue a |> fn)
-
-    /// Maps a proven value with a given function.
-    [<CustomOperation("optional")>]
+    [<CustomOperation("optional", MaintainsVariableSpaceUsingBind=true)>]
     member this.Optional(c:VCtx<'F, ValueCtx<'A option>>, fn:'A -> VCtx<'F, ValueCtx<'B>>): VCtx<'F, ValueCtx<'B option>> =
         match c with
         | ValidCtx v                ->
@@ -109,14 +114,19 @@ type VCtxBuilder() =
                 | RefutedCtx (gfs',lfs')    -> RefutedCtx (VCtx.applyFailures v (gfs,lfs) (gfs',lfs'))
         | RefutedCtx (gfs,lfs)   -> RefutedCtx (gfs,lfs)
 
+    /// Maps a proven value with a given function.
+    [<CustomOperation("qed", MaintainsVariableSpaceUsingBind=true)>]
+    member this.Proven(c:VCtx<'F, ValueCtx<'A>>, fn:'A -> 'B): VCtx<'F, 'B> =
+        c |> VCtx.map (fun a -> ValueCtx.getValue a |> fn)
+
     /// Unwraps a proven value.
-    [<CustomOperation("qed")>]
+    [<CustomOperation("qed", MaintainsVariableSpaceUsingBind=true)>]
     member this.Proven(c:VCtx<'F, ValueCtx<'A>>): VCtx<'F, 'A> =
         c |> VCtx.map ValueCtx.getValue
 
     /// Adds a validation failure to the result and ends validation.
-    [<CustomOperation("refute")>]
-    member this.Refute(_, v, f) = this.Refute(v, f)
+    [<CustomOperation("refute", MaintainsVariableSpaceUsingBind=true)>]
+    member this.Refute(c, f) = this.Bind(c, fun v -> this.Refute(v, f))
 
     member private this.Refute(v, f) =
         match v with
@@ -124,56 +134,18 @@ type VCtxBuilder() =
         | Global _      -> RefutedCtx ([f], Map.empty)
 
     /// Adds validation failures to the result and ends validation.
-    [<CustomOperation("refuteMany")>]
-    member this.RefuteMany(_, v, fs) = this.RefuteMany(v, fs)
+    [<CustomOperation("refuteMany", MaintainsVariableSpaceUsingBind=true)>]
+    member this.RefuteMany(c, fs) = this.Bind(c, fun v -> this.RefuteMany(v, fs))
 
     member private this.RefuteMany(v, fs) =
         match v with
         | Field (n, _)  -> RefutedCtx (List.empty, (Map.add [n] fs Map.empty))
         | Global _      -> RefutedCtx (fs, Map.empty)
 
-    // Adds a validation failure to the result and continues validation.
-    [<CustomOperation("dispute")>]
-    member this.Dispute(_, v, f) = this.Dispute(v, f)
-
-    member private this.Dispute(v, f) =
-        match v with
-        | Field (n, _)  -> DisputedCtx (List.empty, (Map.add [n] [f] Map.empty), v)
-        | Global _      -> DisputedCtx ([f], Map.empty, v)
-
-    /// Adds validation failures to the result and continues validation.
-    [<CustomOperation("disputeMany")>]
-    member this.DisputeMany(_, v, fs) = this.DisputeMany(v, fs)
-
-    member private this.DisputeMany(v, fs) =
-        match v with
-        | Field (n, _)  -> DisputedCtx (List.empty, (Map.add [n] fs Map.empty), v)
-        | Global _      -> DisputedCtx (fs, Map.empty, v)
-
-    /// Performs a validation using a given function and handles the result.
-    /// If the result is `Some f`, a validation failure is added to the result and validation continues.
-    /// If the result is `None`, validation continues with no failure.
-    [<CustomOperation("disputeWith")>]
-    member this.DisputeWith (c:VCtx<'F, ValueCtx<'A>>, fn:'A -> 'F option): VCtx<'F, ValueCtx<'A>> =
-        this.Bind(c, fun v ->
-            match fn (ValueCtx.getValue v) with
-            | Some f   -> this.Dispute(v, f)
-            | None     -> this.Return(v)
-        )
-
-    /// Similar to 'disputeWith' except that the given failure is added if the given function returns False.
-    [<CustomOperation("disputeWithFact")>]
-    member this.DisputeWithFact(c:VCtx<'F, ValueCtx<'A>>, f:'F, fn:'A -> bool): VCtx<'F, ValueCtx<'A>> =
-        this.DisputeWith(c, fun a ->
-            match fn a with
-            | true  -> None
-            | false -> Some f
-        )
-
     /// Performs a validation using a given function and handles the result.
     /// If the result is `Error f`, a validation failure is added to the result and validation ends.
     /// If the result is `Ok b`, validation continues with the new value.
-    [<CustomOperation("refuteWith")>]
+    [<CustomOperation("refuteWith", MaintainsVariableSpaceUsingBind=true)>]
     member this.RefuteWith(c:VCtx<'F, ValueCtx<'A>>, fn:'A -> Result<'B, 'F>): VCtx<'F, ValueCtx<'B>> =
         this.Bind(c, fun v ->
             match fn (ValueCtx.getValue v) with
@@ -181,10 +153,19 @@ type VCtxBuilder() =
             | Ok b      -> this.Return(ValueCtx.setValue v b)
         )
 
+    /// Performs a validation on each member of a list using a given function and handles the result.
+    /// If the result of any element is `Error f`, a validation failure is added to the result and validation ends.
+    /// If the result of all elements are `Ok b`, validation continues with the new value.
+    [<CustomOperation("refuteEachWith", MaintainsVariableSpace=true)>]
+    member this.RefuteEach(c:VCtx<'F, ValueCtx<#seq<'A>>>, fn:int * 'A -> Result<'B, 'F>): VCtx<'F, ValueCtx<'B>> =
+        this.Bind(c, fun v ->
+            
+        )
+
     /// Performs a validation using a given function and handles the result.
     /// If the result is 'Invalid', the validation failures are added to the result and validation ends.
     /// If the result is `Valid b`, validation continues with the new value.
-    [<CustomOperation("refuteWithProof")>]
+    [<CustomOperation("refuteWithProof", MaintainsVariableSpaceUsingBind=true)>]
     member this.RefuteWithProof(c:VCtx<'F, ValueCtx<'A>>, fn:'A -> Proof<'F, 'B>) =
         this.Bind(c, fun v ->
             match v with
@@ -196,6 +177,89 @@ type VCtxBuilder() =
                 match fn a with
                 | Invalid (gfs, lfs)    -> RefutedCtx ([], Map.add [n] gfs lfs)
                 | Valid b               -> this.Return(Field (n, b))
+        )
+
+    /// Similar to 'disputeWith' except that the given failure is added if the given function returns False.
+    [<CustomOperation("refuteEachWithProof", MaintainsVariableSpace=true)>]
+    member this.RefuteEachWithProof(c:VCtx<'F, ValueCtx<#seq<'A>>>, fn:int * 'A -> Proof<'F, 'B>): VCtx<'F, ValueCtx<'B>> =
+        this.DisputeWith(c, fun a ->
+            match fn a with
+            | true  -> None
+            | false -> Some f
+        )
+
+    // Adds a validation failure to the result and continues validation.
+    [<CustomOperation("dispute", MaintainsVariableSpace=true)>]
+    member this.Dispute(c:VCtx<'F, ValueCtx<'A>>, f) = this.Bind(c, fun v -> this.Dispute(v, f))
+
+    member private this.Dispute(v, f) =
+        match v with
+        | Field (n, _)  -> DisputedCtx (List.empty, (Map.add [n] [f] Map.empty), v)
+        | Global _      -> DisputedCtx ([f], Map.empty, v)
+
+    /// Adds validation failures to the result and continues validation.
+    [<CustomOperation("disputeMany", MaintainsVariableSpace=true)>]
+    member this.DisputeMany(c, fs) = this.Bind(c, fun v -> this.DisputeMany(v, fs))
+
+    member private this.DisputeMany(v, fs) =
+        match v with
+        | Field (n, _)  -> DisputedCtx (List.empty, (Map.add [n] fs Map.empty), v)
+        | Global _      -> DisputedCtx (fs, Map.empty, v)
+
+    /// Performs a validation using a given function and handles the result.
+    /// If the result is `Some f`, a validation failure is added to the result and validation continues.
+    /// If the result is `None`, validation continues with no failure.
+    [<CustomOperation("disputeWith", MaintainsVariableSpace=true)>]
+    member this.DisputeWith (c:VCtx<'F, ValueCtx<'A>>, fn:'A -> 'F option): VCtx<'F, ValueCtx<'A>> =
+        this.Bind(c, fun v ->
+            match fn (ValueCtx.getValue v) with
+            | Some f   -> this.Dispute(v, f)
+            | None     -> this.Return(v)
+        )
+
+    /// Similar to 'disputeWith' except that the given failure is added if the given function returns False.
+    [<CustomOperation("disputeWithFact", MaintainsVariableSpace=true)>]
+    member this.DisputeWithFact(c:VCtx<'F, ValueCtx<'A>>, f:'F, fn:'A -> bool): VCtx<'F, ValueCtx<'A>> =
+        this.DisputeWith(c, fun a ->
+            match fn a with
+            | true  -> None
+            | false -> Some f
+        )
+
+    /// Similar to 'disputeWith' except that the given failure is added if the given function returns False.
+    [<CustomOperation("disputeAnyWith", MaintainsVariableSpace=true)>]
+    member this.DisputeAnyWith(c:VCtx<'F, ValueCtx<#seq<'A>>>, f:'F, fn:'A -> 'F option): VCtx<'F, ValueCtx<'A>> =
+        this.DisputeWith(c, fun a ->
+            match fn a with
+            | true  -> None
+            | false -> Some f
+        )
+
+    /// Similar to 'disputeWith' except that the given failure is added if the given function returns False.
+    [<CustomOperation("disputeAllWith", MaintainsVariableSpace=true)>]
+    member this.DisputeAllWith(c:VCtx<'F, ValueCtx<#seq<'A>>>, f:'F, fn:'A -> 'F option): VCtx<'F, ValueCtx<'A>> =
+        this.DisputeWith(c, fun a ->
+            match fn a with
+            | true  -> None
+            | false -> Some f
+        )
+
+    /// Similar to 'disputeWith' except that the given failure is added if the given function returns False.
+    [<CustomOperation("disputeAnyWithFact", MaintainsVariableSpace=true)>]
+    member this.DisputeAnyWithFact(c:VCtx<'F, ValueCtx<#seq<'A>>>, f:'F, fn:'A -> bool): VCtx<'F, ValueCtx<'A>> =
+        this.DisputeWith(c, fun a ->
+            match fn a with
+            | true  -> None
+            | false -> Some f
+        )
+
+    /// Similar to 'disputeWith' except that the given failure is added if the given function returns False.
+    [<CustomOperation("disputeAllWithFact", MaintainsVariableSpace=true)>]
+    member this.DisputeAllWithFact(c:VCtx<'F, ValueCtx<#seq<'A>>>, f:'F, fn:'A -> bool): VCtx<'F, ValueCtx<'A>> =
+        this.DisputeWith(c, fun a ->
+            match fn a with
+            | true  -> None
+            | false -> Some f
         )
 
 [<AutoOpen>]
