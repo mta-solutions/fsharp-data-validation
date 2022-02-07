@@ -127,6 +127,17 @@ let mkPhoneNumber (str:string) =
     } |> fromVCtx
 
 // Contact types
+type Contact =
+    | Call of PhoneNumber
+    | Text of PhoneNumber
+    | Email of EmailAddress
+      
+type ContactFailure = 
+    | MissingContactType
+    | MissingContactDetails
+    | InvalidPhoneNumber of PhoneNumberFailure
+    | InvalidEmailAddress of EmailAddressFailure
+
 type ContactType =
     | Call
     | Text
@@ -135,57 +146,52 @@ type ContactType =
 type ContactVM =
     { ContactType: ContactType option
       ContactDetails: string option }
-      
-type ContactFailure = 
-    | MissingContactType
-    | MissingContactDetails
-    | InvalidPhoneNumber of PhoneNumberFailure
-    | InvalidEmailAddress of EmailAddressFailure
-
-type Contact =
-    | Call of PhoneNumber
-    | Text of PhoneNumber
-    | Email of EmailAddress
-with
-    static member Make(vm:ContactVM) =
+    with
+    member this.MakeContact() =
         validation {
             let! typ = validation {
-                withField (fun () -> vm.ContactType)
+                withField (fun () -> this.ContactType)
                 refuteWith (isRequired MissingContactType)
                 qed
             }
             and! d = validation {
-                withField (fun () -> vm.ContactDetails)
+                withField (fun () -> this.ContactDetails)
                 refuteWith (isRequired MissingContactDetails)
                 qed
             }
             let! result =
                 match typ with
                 | ContactType.Call -> validation {
-                        withField (fun () -> vm.ContactDetails) d
+                        withField (fun () -> this.ContactDetails) d
                         refuteWithProof (mkPhoneNumber >> Proof.mapInvalid InvalidPhoneNumber)
-                        qed (fun pn -> Call pn)
+                        qed (fun pn -> Contact.Call pn)
                     }
                 | ContactType.Text -> validation {
-                        withField (fun () -> vm.ContactDetails) d
+                        withField (fun () -> this.ContactDetails) d
                         refuteWithProof (mkPhoneNumber >> Proof.mapInvalid InvalidPhoneNumber)
-                        qed (fun pn -> Text pn)
+                        qed (fun pn -> Contact.Text pn)
                     }
                 | ContactType.Email -> validation {
-                        withField (fun () -> vm.ContactDetails) d
+                        withField (fun () -> this.ContactDetails) d
                         refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
-                        qed (fun pn -> Email pn)
+                        qed (fun pn -> Contact.Email pn)
                     }
             return result
         } |> fromVCtx
 
-// The unvalidated new user type (the view model)
-type NewUserVM =
-    { Name: string option
-      Username: string option
-      Password: string option
-      PreferedContact: ContactVM option
-      AdditionalContacts: ContactVM list }
+// The validated new user type (the model)
+type NewUser = private { 
+    name: Name option
+    username: Username
+    password: Password
+    preferedContact: Contact
+    additionalContacts: Contact list 
+} with
+    member public this.Name = this.name
+    member public this.Username = this.username
+    member public this.Password = this.password
+    member public this.PreferedContact = this.preferedContact
+    member public this.AdditionalContacts = this.additionalContacts
 
 type NewUserFailure = 
     | RequiredField
@@ -195,24 +201,18 @@ type NewUserFailure =
     | InvalidPassword of PasswordFailure
     | InvalidContact of ContactFailure
 
-// The validated new user type (the model)
-
-type NewUser = private { 
-    name: Name option
-    username: Username
-    password: Password
-    preferedContact: Contact
-    additionalContacts: Contact list
-} with
-member public this.Name = this.name
-member public this.Username = this.username
-member public this.Password = this.password
-member public this.PreferedContact = this.preferedContact
-member public this.AdditionalContacts = this.additionalContacts
-static member Make(vm: NewUserVM) = 
+// The unvalidated new user type (the view model)
+type NewUserVM =
+    { Name: string option
+      Username: string option
+      Password: string option
+      PreferedContact: ContactVM option
+      AdditionalContacts: ContactVM list }
+with
+member this.MakeNewUser() = 
     validation {
         let! name = validation {
-            withField (fun () -> vm.Name)
+            withField (fun () -> this.Name)
             optional (fun v -> validation {
                 withValue v
                 refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
@@ -220,30 +220,30 @@ static member Make(vm: NewUserVM) =
             qed
         }
         and! username = validation {
-            withField (fun () -> vm.Username)
+            withField (fun () -> this.Username)
             refuteWith (isRequired RequiredField)
             refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
             qed
         }
         and! password = validation {
-            withField (fun () -> vm.Password)
+            withField (fun () -> this.Password)
             refuteWith (isRequired RequiredField)
             refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
             qed
         }
         and! preferedContact = validation {
-            withField (fun () -> vm.PreferedContact)
+            withField (fun () -> this.PreferedContact)
             refuteWith (isRequired RequiredField)
-            refuteWithProof (Contact.Make >> Proof.mapInvalid InvalidContact)
+            refuteWithProof (fun pc -> pc.MakeContact() |> Proof.mapInvalid InvalidContact)
             qed
         }
         and! additionalContacts = validation {
-            withField (fun () -> vm.AdditionalContacts)
-            refuteEachWithProof (Contact.Make >> Proof.mapInvalid InvalidContact)
+            withField (fun () -> this.AdditionalContacts)
+            refuteEachWithProof (fun (pc: ContactVM) -> pc.MakeContact() |> Proof.mapInvalid InvalidContact)
             qed List.ofSeq
         }
         and! _ = validation {
-            withValue vm
+            withValue this
             disputeWithFact NameMatchesUsername (fun a -> a.Name = a.Username |> not)
             qed
         }

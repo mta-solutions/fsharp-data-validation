@@ -4,14 +4,6 @@ open FSharp.Data.Validation
 
 open FSharp.Data.Validation.Samples.Primitives
 
-// View Model
-type UserVM =
-    { Username          : string option
-      EmailAddress      : string option
-      PhoneNumber       : string option
-      ContactPreference : ContactPreference option
-      ZipCode           : string option }
-
 // Model
 type User = private { 
         Username          : Username
@@ -19,32 +11,41 @@ type User = private {
         PhoneNumber       : PhoneNumber option
         ContactPreference : ContactPreference
         ZipCode           : ZipCode option 
-    } with
-    static member Make(viewModel: UserVM) =
+    }
+
+// View Model
+type UserVM =
+    { Username          : string option
+      EmailAddress      : string option
+      PhoneNumber       : string option
+      ContactPreference : ContactPreference option
+      ZipCode           : string option }
+    with
+    member this.MakeUser() =
         validation {
             let! cp = validation {
-                withField (fun () -> viewModel.ContactPreference)
+                withField (fun () -> this.ContactPreference)
                 refuteWith (isRequired RequiredField)
                 qed
             }
             and! un = validation {
-                withField (fun () -> viewModel.Username)
+                withField (fun () -> this.Username)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
                 qed
             }
             and! ea = validation {
-                withField (fun () -> viewModel.EmailAddress)
+                withField (fun () -> this.EmailAddress)
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
                 })
-                disputeWith (isRequiredWhen RequiredField (viewModel.ContactPreference = Some ContactPreference.Email))
+                disputeWith (isRequiredWhen RequiredField (this.ContactPreference = Some ContactPreference.Email))
                 qed
             }
             and! pn = validation {
-                withField (fun () -> viewModel.PhoneNumber)
-                disputeWith (isRequiredWhen RequiredField (viewModel.ContactPreference = Some ContactPreference.Phone))
+                withField (fun () -> this.PhoneNumber)
+                disputeWith (isRequiredWhen RequiredField (this.ContactPreference = Some ContactPreference.Phone))
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (mkPhoneNumber >> Proof.mapInvalid InvalidPhoneNumber)
@@ -52,7 +53,7 @@ type User = private {
                 qed
             }
             and! z = validation {
-                withField (fun () -> viewModel.ZipCode)
+                withField (fun () -> this.ZipCode)
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (mkZipCode >> Proof.mapInvalid InvalidZipCode)
@@ -60,7 +61,7 @@ type User = private {
                 qed
             }
             and! _ = validation {
-                withValue viewModel
+                withValue this
                 disputeWithFact EmailAddressMatchesUsername (fun a -> a.EmailAddress = a.Username |> not)
                 qed
             }

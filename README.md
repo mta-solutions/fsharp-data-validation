@@ -442,13 +442,6 @@ module Example.Types
 
 // primitive types and smart constructors
 
-// The unvalidated new user type (the view model)
-type NewUserVM =
-    { Name: string option
-      Username: string option
-      Password: string option
-      EmailAddress: string option }
-
 // The validated new user type (the model)
 type NewUser = private { 
     name: Name option
@@ -460,6 +453,13 @@ member public this.Name = this.name
 member public this.Username = this.username
 member public this.Password = this.password
 member public this.EmailAddress = this.emailAddress
+
+// The unvalidated new user type (the view model)
+type NewUserVM =
+    { Name: string option
+      Username: string option
+      Password: string option
+      EmailAddress: string option }
 ```
 
 We need 2 models here because type safe validation requires type transformation.
@@ -484,17 +484,14 @@ module Example.Types
 ...
 
 // The validated new user type (the model)
-type NewUser = private { 
-    name: Name option
-    username: Username
-    password: Password
-    emailAddress: EmailAddress 
-} with
-member public this.Name = this.name
-member public this.Username = this.username
-member public this.Password = this.password
-member public this.EmailAddress = this.emailAddress
-static member Make(vm: NewUserVM) = 
+// The unvalidated new user type (the view model)
+type NewUserVM =
+    { Name: string option
+      Username: string option
+      Password: string option
+      EmailAddress: string option }
+with
+member this.MakeNewUser() = 
     validation {
         let! name = validation {
             // validate name
@@ -523,7 +520,7 @@ module Example.Types
 
 ...
 
-static member Make(vm: NewUserVM) = 
+member this.MakeNewUser() = 
     validation {
         let! name = validation {
             // if this validation is refuted
@@ -554,7 +551,7 @@ module Example.Types
 
 ...
 
-static member Make(vm: NewUserVM) = 
+member this.MakeNewUser() = 
     validation {
         let! name = validation {
             // this validation always runs
@@ -633,30 +630,30 @@ module Example.Types
 
 ...
 
-static member Make(vm: NewUserVM) = 
+member this.MakeNewUser() = 
     validation {
         let! name = validation {
-            withField (fun () -> vm.Name)
+            withField (fun () -> this.Name)
             // validate name
             qed
         }
         and! username = validation {
-            withField (fun () -> vm.Username)
+            withField (fun () -> this.Username)
             // validate username
             qed
         }
         and! password = validation {
-            withField (fun () -> vm.Password)
+            withField (fun () -> this.Password)
             // validate password
             qed
         }
         and! emailAddress = validation {
-            withField (fun () -> vm.EmailAddress)
+            withField (fun () -> this.EmailAddress)
             // validate email address
             qed
         }
         // validate that the username does not equal the password
-        return { User.Name = name; Username = username; Password = password; EmailAddress = emailAddress; }
+        return { NewUser.Name = name; Username = username; Password = password; EmailAddress = emailAddress; }
     } |> fromVCtx
 ```
 
@@ -685,27 +682,27 @@ type NewUserFailure =
 
 ...
 
-static member Make(vm: NewUserVM) = 
+member this.MakeNewUser() = 
     validation {
         let! name = validation {
-            withField (fun () -> vm.Name)
+            withField (fun () -> this.Name)
             // how do we validate an optional field?
             qed
         }
         and! username = validation {
-            withField (fun () -> vm.Username)
+            withField (fun () -> this.Username)
             refuteWith (isRequired RequiredField)
             refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
             qed
         }
         and! password = validation {
-            withField (fun () -> vm.Password)
+            withField (fun () -> this.Password)
             refuteWith (isRequired RequiredField)
             refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
             qed
         }
         and! emailAddress = validation {
-            withField (fun () -> vm.EmailAddress)
+            withField (fun () -> this.EmailAddress)
             refuteWith (isRequired RequiredField)
             refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
             qed
@@ -739,7 +736,7 @@ Let's see it in action.
 
 ```fsharp
         let! name = validation {
-            withField (fun () -> vm.Name)
+            withField (fun () -> this.Name)
             optional (fun v -> validation {
                 withValue v
                 refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
@@ -764,10 +761,10 @@ module Example.Types
 
 ...
 
-static member Make(vm: NewUserVM) = 
+member this.MakeNewUser() = 
     validation {
         let! name = validation {
-            withField (fun () -> vm.Name)
+            withField (fun () -> this.Name)
             optional (fun v -> validation {
                 withValue v
                 refuteWithProof (mkName >> Proof.mapInvalid InvalidEmailAddress)
@@ -775,25 +772,25 @@ static member Make(vm: NewUserVM) =
             qed
         }
         and! username = validation {
-            withField (fun () -> vm.Username)
+            withField (fun () -> this.Username)
             refuteWith (isRequired RequiredField)
             refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
             qed
         }
         and! password = validation {
-            withField (fun () -> vm.Password)
+            withField (fun () -> this.Password)
             refuteWith (isRequired RequiredField)
             refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
             qed
         }
         and! emailAddress = validation {
-            withField (fun () -> vm.EmailAddress)
+            withField (fun () -> this.EmailAddress)
             refuteWith (isRequired RequiredField)
             refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
             qed
         }
         and! _ = validation {
-            withValue vm
+            withValue this
             disputeWithFact EmailAddressMatchesUsername (fun a -> a.EmailAddress = a.Username |> not)
             qed
         }
