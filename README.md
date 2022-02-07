@@ -701,17 +701,17 @@ static member Make(vm: NewUserVM) =
         and! password = validation {
             withField (fun () -> vm.Password)
             refuteWith (isRequired RequiredField)
-            refuteWithProof (mkUsername >> Proof.mapInvalid InvalidPassword)
+            refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
             qed
         }
         and! emailAddress = validation {
             withField (fun () -> vm.EmailAddress)
             refuteWith (isRequired RequiredField)
-            refuteWithProof (mkUsername >> Proof.mapInvalid InvalidPassword)
+            refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
             qed
         }
         // validate that the username does not equal the password
-        return { User.Name = name; Username = username; Password = password; EmailAddress = emailAddress; }
+        return { NewUser.name = name; username = username; password = password; emailAddress = emailAddress; }
     } |> fromVCtx
 ```
 
@@ -742,7 +742,7 @@ Let's see it in action.
             withField (fun () -> vm.Name)
             optional (fun v -> validation {
                 withValue v
-                refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
+                refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
             })
             qed
         }
@@ -770,7 +770,7 @@ static member Make(vm: NewUserVM) =
             withField (fun () -> vm.Name)
             optional (fun v -> validation {
                 withValue v
-                refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
+                refuteWithProof (mkName >> Proof.mapInvalid InvalidEmailAddress)
             })
             qed
         }
@@ -783,21 +783,21 @@ static member Make(vm: NewUserVM) =
         and! password = validation {
             withField (fun () -> vm.Password)
             refuteWith (isRequired RequiredField)
-            refuteWithProof (mkUsername >> Proof.mapInvalid InvalidPassword)
+            refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
             qed
         }
         and! emailAddress = validation {
             withField (fun () -> vm.EmailAddress)
             refuteWith (isRequired RequiredField)
-            refuteWithProof (mkUsername >> Proof.mapInvalid InvalidPassword)
+            refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
             qed
         }
         and! _ = validation {
-            withValue viewModel
+            withValue vm
             disputeWithFact EmailAddressMatchesUsername (fun a -> a.EmailAddress = a.Username |> not)
             qed
         }
-        return { User.Name = name; Username = username; Password = password; EmailAddress = emailAddress; }
+        return { NewUser.name = name; username = username; password = password; emailAddress = emailAddress; }
     } |> fromVCtx
 ```
 

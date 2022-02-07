@@ -267,48 +267,6 @@ let ``doesNotHaveElem: false when collection includes element`` () =
     let input = [1;2;5;7]
     Assert.True(hasElem 5 input)
 
-[<Fact>]
-let ``ifAny: When no elements are valid, returns invalid`` () =
-    let input = Global ([1;2;3;4] |> Seq.ofList)
-    let fn a = if a = 5 then None else Some "Failure"
-    let expected = DisputedCtx (["Failure"; "Failure"; "Failure"; "Failure"], Map.empty, input)
-    Assert.Equal(expected, ifAny fn input)
-
-[<Fact>]
-let ``ifAny: When one element is valid, returns valid`` () =
-    let input = Global ([1;2;3;5] |> Seq.ofList)
-    let fn a = if a = 5 then None else Some "Failure"
-    let expected = ValidCtx input
-    Assert.Equal(expected, ifAny fn input)
-
-[<Fact>]
-let ``ifAny: When all elements are valid, returns valid`` () =
-    let input = Global ([5;5] |> Seq.ofList)
-    let fn a = if a = 5 then None else Some "Failure"
-    let expected = ValidCtx input
-    Assert.Equal(expected, ifAny fn input)
-
-[<Fact>]
-let ``ifAll: When no elements are valid, returns invalid`` () =
-    let input = Global ([1;2;3;4] |> Seq.ofList)
-    let fn a = if a = 5 then None else Some "Failure"
-    let expected = DisputedCtx (["Failure"; "Failure"; "Failure"; "Failure"], Map.empty, input)
-    Assert.Equal(expected, ifAll fn input)
-
-[<Fact>]
-let ``ifAll: When one element is valid, returns invalid`` () =
-    let input = Global ([1;2;3;5] |> Seq.ofList)
-    let fn a = if a = 5 then None else Some "Failure"
-    let expected = DisputedCtx (["Failure"; "Failure"; "Failure"], Map.empty, input)
-    Assert.Equal(expected, ifAll fn input)
-
-[<Fact>]
-let ``ifAll: When all elements are valid, returns valid`` () =
-    let input = Global ([5;5] |> Seq.ofList)
-    let fn a = if a = 5 then None else Some "Failure"
-    let expected = ValidCtx input
-    Assert.Equal(expected, ifAll fn input)
-
 type Five = Five
 type NotFiveError = NotFiveError
 
@@ -321,67 +279,6 @@ let mk5 i =
 
 let is5 i =
     if i = 5 then Ok 5 else Error NotFiveError
-
-[<Fact>]
-let ``ifEach: When no elements are valid, returns refuted with all errors`` () =
-    let input = Global ([1;2;3;4] |> Seq.ofList)
-    let expected = RefutedCtx ([NotFiveError; NotFiveError; NotFiveError; NotFiveError], Map.empty)
-    Assert.Equal(expected, ifEach is5 input)
-
-[<Fact>]
-let ``ifEach: When some elements are valid, returns refuted with all errors`` () =
-    let input = Global ([1;5;3;5] |> Seq.ofList)
-    let expected = RefutedCtx ([NotFiveError; NotFiveError], Map.empty)
-    Assert.Equal(expected, ifEach is5 input)
-
-[<Fact>]
-let ``ifEach: When all elements are valid, returns valid`` () =
-    let input = Global ([5;5;5;5] |> Seq.ofList)
-    let expected = ValidCtx input
-    // Seqs cannot be directly compared for equality
-    Assert.Equal(expected |> VCtx.map (ValueCtx.map Seq.toList),
-                 ifEach is5 input |> VCtx.map (ValueCtx.map Seq.toList))
-
-[<Fact>]
-let ``ifEachProven: When no elements are proven, returns refuted with all errors`` () =
-    let input = Global ([1;2;3;4] |> Seq.ofList)
-    let expected = RefutedCtx ([NotFiveError; NotFiveError; NotFiveError; NotFiveError], Map.empty)
-    Assert.Equal(expected, ifEachProven mk5 input)
-
-[<Fact>]
-let ``ifEachProven: Field Context, When no elements are proven, returns refuted with all errors`` () =
-    let field1 = mkName "Field1" |> Option.get
-    let input = Field (field1, ([1;2;3;4] |> Seq.ofList))
-    let expected = RefutedCtx ([], Map.ofList [([field1], [NotFiveError; NotFiveError; NotFiveError; NotFiveError])])
-    Assert.Equal(expected, ifEachProven mk5 input)
-
-[<Fact>]
-let ``ifEachProven: When some elements are proven, returns refuted with all errors`` () =
-    let input = Global ([1;5;3;5] |> Seq.ofList)
-    let expected = RefutedCtx ([NotFiveError; NotFiveError], Map.empty)
-    Assert.Equal(expected, ifEachProven mk5 input)
-
-[<Fact>]
-let ``ifEachProven: Field Context, When some elements are proven, returns refuted with all errors`` () =
-    let field1 = mkName "Field1" |> Option.get
-    let input = Field (field1, ([1;5;3;5] |> Seq.ofList))
-    let expected = RefutedCtx ([], Map.ofList [([field1], [NotFiveError; NotFiveError])])
-    Assert.Equal(expected, ifEachProven mk5 input)
-
-[<Fact>]
-let ``ifEachProven: When all elements are proven, returns valid`` () =
-    let input = Global ([5;5;5;5] |> Seq.ofList)
-    let expected = ValidCtx (Global ([Five; Five; Five; Five] |> Seq.ofList))
-    Assert.Equal(expected |> VCtx.map (ValueCtx.map Seq.toList),
-                 ifEachProven mk5 input |> VCtx.map (ValueCtx.map Seq.toList))
-
-[<Fact>]
-let ``ifEachProven: Field Context, When all elements are proven, returns valid`` () =
-    let field1 = mkName "Field1" |> Option.get
-    let input = Field (field1, ([5;5;5;5] |> Seq.ofList))
-    let expected = ValidCtx (Field (field1, ([Five; Five; Five; Five] |> Seq.ofList)))
-    Assert.Equal(expected |> VCtx.map (ValueCtx.map Seq.toList),
-                 ifEachProven mk5 input |> VCtx.map (ValueCtx.map Seq.toList))
 
 [<Property>]
 let ``isValid: Returns true when Result is Valid`` (NonWhiteSpaceString a) =
