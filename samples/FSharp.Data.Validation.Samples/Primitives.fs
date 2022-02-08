@@ -88,4 +88,4 @@ module ZipCode =
             qed ZipCode
         } |> fromVCtx
         
-    let unwrap (PhoneNumber s) = s
+    let unwrap (ZipCode s) = s
