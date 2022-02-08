@@ -1,21 +1,38 @@
-﻿# FSharp.Data.Validation
+﻿# FSharp.Data.Validation <!-- omit in toc -->
 
 *A functional approach to data validation.*
 
-## Table of Contents
+## Table of Contents <!-- omit in toc -->
 
-1. [Getting Started](#Getting-Started)
-   1. [How to Use This Library](#How-to-Use-This-Library)
-      1. [The Proof Type](#The-Proof-Type) 
-      1. [The IValidatable Type](#The-IValidatable-Type) 
-      1. [The Validation Computation Expression](#The-Validation-Computation-Expression) 
-1. [Advanced Concepts](#Advanced-Concepts)
-   1. [The ValueCtx Type](#The-ValueCtx-Type)
-   1. [The VCtx Type](The-VCtx-Type)
-1. [Recipes](#Recipes)
-1. [Data-Validation Library for Haskell](#Data-Validation-Library-for-Haskell)
+- [Getting Started](#getting-started)
+  - [Validating Primitive Types](#validating-primitive-types)
+  - [The Proof Type](#the-proof-type)
+  - [Failures Are Types Too](#failures-are-types-too)
+  - [The Validation Computation Expression](#the-validation-computation-expression)
+  - [`withValue`, `withField`, `qed`, and `ValueCtx`](#withvalue-withfield-qed-and-valuectx)
+  - [The `dispute*` and `refute*` Operations](#the-dispute-and-refute-operations)
+  - [Back to the Example](#back-to-the-example)
+  - [Validating Complex Types](#validating-complex-types)
+  - [The `let!` Operator](#the-let-operator)
+  - [The `and!` Operator](#the-and-operator)
+  - [The `return` Operator](#the-return-operator)
+  - [The `optional` Operator](#the-optional-operator)
+  - [Global Validation](#global-validation)
+  - [Validating Nested Types](#validating-nested-types)
+  - [Validating Collections](#validating-collections)
+  - [Serializing The Proof Type](#serializing-the-proof-type)
+- [Validation Operations](#validation-operations)
+  - [`refute*` Operations](#refute-operations)
+    - [`refute`](#refute)
+    - [`refuteMany`](#refutemany)
+    - [`refuteWith`](#refutewith)
+    - [`refuteProof`](#refuteproof)
+- [Validation Helpers](#validation-helpers)
+- [Data-Validation Library for Haskell](#data-validation-library-for-haskell)
 
 ## Getting Started
+
+*The code for these examples can be found [here](alasconnect/fsharp-data-validation/tree/main/samples/GettingStarted).*
 
 This library is intended to accomplish 2 goals.
 First, it should be impossible for your code to consume unvalidated data.
@@ -158,7 +175,7 @@ Especially because catch all `match` expressions can lead to code that is not ty
 
 Imagine adding a new case that you want to handle.
 If you don't have a catch all pattern, the compiler will tell you what parts of the program need to be updated.
-If the do have catch all patters, you have to search by hand (yuk!).
+If you do have catch all patterns, you have to search for them by hand (yuk!).
 
 Okay, so how do we actually validate our string?
 
@@ -268,7 +285,7 @@ We will see `withField` later when we discuss validating complex types.
 For now, we will just use `withValue`.
 Now, how do we unwrap a value from the `ValueCtx` when we are done  validating it?
 
-#### Don't Forget `qed`
+#### Don't Forget `qed` <!-- omit in toc -->
 
 There are 2 overloads to the `qed` operation.
 The one with no parameters simply unwraps the value from the `ValueCtx`.
