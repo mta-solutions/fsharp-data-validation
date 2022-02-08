@@ -116,23 +116,23 @@ type UserContactDTO =
       PhoneNumber : string option
       EmailAddress : string option
       ContactPreference : ContactPreference option }
- with
-    member this.MakeUserContact() =
+module UserContactDTO =
+    let makeUserContact(vm:UserContactDTO) =
         validation {
             let! uid = validation {
-                withField (fun () -> this.UserId)
+                withField (fun () -> vm.UserId)
                 refuteWith (isRequired MissingUserId)
                 refuteWithProof (Proof.mapInvalid UserIdFailure << UserId.make)
                 qed
             }
             and! cp = validation {
-                withField (fun () -> this.ContactPreference)
+                withField (fun () -> vm.ContactPreference)
                 refuteWith (isRequired MissingContractPreference)
                 qed
             }
             and! pn = validation {
-                withField (fun () -> this.PhoneNumber)
-                disputeWith (isRequiredWhen MissingConditionalPhone (this.ContactPreference = Some Phone))
+                withField (fun () -> vm.PhoneNumber)
+                disputeWith (isRequiredWhen MissingConditionalPhone (vm.ContactPreference = Some Phone))
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (Proof.mapInvalid PhoneNumberFailure << PhoneNumber.make)
@@ -140,8 +140,8 @@ type UserContactDTO =
                 qed
             }
             and! ea = validation {
-                withField (fun () -> this.EmailAddress)
-                disputeWith (isRequiredUnless MissingConditionalEmail (this.ContactPreference <> Some Email))
+                withField (fun () -> vm.EmailAddress)
+                disputeWith (isRequiredUnless MissingConditionalEmail (vm.ContactPreference <> Some Email))
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (Proof.mapInvalid EmailAddressFailure << EmailAddress.make)
@@ -149,7 +149,7 @@ type UserContactDTO =
                 qed
             }
             and! _ = validation {
-                withValue this
+                withValue vm
                 disputeWithFact OtherFailure (fun a -> a.UserId <> Some 0)
                 qed
             }
@@ -173,7 +173,7 @@ let ``UserContactDTO: Validated when all values pass criteria`` (PositiveInt uid
         EmailAddress = Some (EmailAddress email)
         ContactPreference = cp
     }
-    Assert.Equal(expected, input.MakeUserContact())
+    Assert.Equal(expected, UserContactDTO.makeUserContact(input))
 
 [<Property>]
 let ``UserContactDTO: Returns single failure when email is invalid`` (PositiveInt uid) =
@@ -192,7 +192,7 @@ let ``UserContactDTO: Returns single failure when email is invalid`` (PositiveIn
             Map.ofList [
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
             ])
-    Assert.Equal(expected, input.MakeUserContact())
+    Assert.Equal(expected, UserContactDTO.makeUserContact(input))
 
 [<Property>]
 let ``UserContactDTO: Returns multiple failures when email and userid are invalid`` (NegativeInt uid) =
@@ -212,7 +212,7 @@ let ``UserContactDTO: Returns multiple failures when email and userid are invali
                 ([mkName "UserId" |> Option.get], [UserIdFailure LessThanOneFailure])
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
             ])
-    Assert.Equal(expected, input.MakeUserContact())
+    Assert.Equal(expected, UserContactDTO.makeUserContact(input))
 
 [<Fact>]
 let ``UserContactDTO: Returns multiple failures when email is invalid and userid is missing`` () =
@@ -232,7 +232,7 @@ let ``UserContactDTO: Returns multiple failures when email is invalid and userid
                 ([mkName "UserId" |> Option.get], [MissingUserId])
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
             ])
-    Assert.Equal(expected, input.MakeUserContact())
+    Assert.Equal(expected, UserContactDTO.makeUserContact(input))
 
 [<Fact>]
 let ``UserContactDTO: Returns multiple failures and global when email is invalid and userid is 0`` () =
@@ -252,7 +252,7 @@ let ``UserContactDTO: Returns multiple failures and global when email is invalid
                 ([mkName "UserId" |> Option.get], [UserIdFailure LessThanOneFailure])
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
             ])
-    Assert.Equal(expected, input.MakeUserContact())
+    Assert.Equal(expected, UserContactDTO.makeUserContact(input))
 
 [<Property>]
 let ``UserContactDTO: Returns multiple failures when email is invalid and contact preference is phone`` (PositiveInt uid) =
@@ -272,4 +272,4 @@ let ``UserContactDTO: Returns multiple failures when email is invalid and contac
                 ([mkName "EmailAddress" |> Option.get], [EmailAddressFailure InvalidEmail])
                 ([mkName "PhoneNumber" |> Option.get], [MissingConditionalPhone])
             ])
-    Assert.Equal(expected, input.MakeUserContact())
+    Assert.Equal(expected, UserContactDTO.makeUserContact(input))

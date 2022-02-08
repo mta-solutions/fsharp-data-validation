@@ -20,32 +20,33 @@ type UserVM =
       PhoneNumber       : string option
       ContactPreference : ContactPreference option
       ZipCode           : string option }
-    with
-    member this.MakeUser() =
+
+module UserVM =
+    let makeUser(vm:UserVM) =
         validation {
             let! cp = validation {
-                withField (fun () -> this.ContactPreference)
+                withField (fun () -> vm.ContactPreference)
                 refuteWith (isRequired RequiredField)
                 qed
             }
             and! un = validation {
-                withField (fun () -> this.Username)
+                withField (fun () -> vm.Username)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (Username.make >> Proof.mapInvalid InvalidUsername)
                 qed
             }
             and! ea = validation {
-                withField (fun () -> this.EmailAddress)
+                withField (fun () -> vm.EmailAddress)
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (EmailAddress.make >> Proof.mapInvalid InvalidEmailAddress)
                 })
-                disputeWith (isRequiredWhen RequiredField (this.ContactPreference = Some ContactPreference.Email))
+                disputeWith (isRequiredWhen RequiredField (vm.ContactPreference = Some ContactPreference.Email))
                 qed
             }
             and! pn = validation {
-                withField (fun () -> this.PhoneNumber)
-                disputeWith (isRequiredWhen RequiredField (this.ContactPreference = Some ContactPreference.Phone))
+                withField (fun () -> vm.PhoneNumber)
+                disputeWith (isRequiredWhen RequiredField (vm.ContactPreference = Some ContactPreference.Phone))
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (PhoneNumber.make >> Proof.mapInvalid InvalidPhoneNumber)
@@ -53,7 +54,7 @@ type UserVM =
                 qed
             }
             and! z = validation {
-                withField (fun () -> this.ZipCode)
+                withField (fun () -> vm.ZipCode)
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (ZipCode.make >> Proof.mapInvalid InvalidZipCode)
@@ -61,7 +62,7 @@ type UserVM =
                 qed
             }
             and! _ = validation {
-                withValue this
+                withValue vm
                 disputeWithFact EmailAddressMatchesUsername (fun a -> a.EmailAddress = a.Username |> not)
                 qed
             }

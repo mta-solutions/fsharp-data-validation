@@ -435,7 +435,7 @@ Let's say we have a form to allow new users to sign up on our website.
 The data from that form is sent to a REST endpoint which processes the data.
 We want to accept a name, username, email address, and password.
 All of the fields will be required except for the name.
-For some added complexity, we also want to make sure the username does not equal the password (because, security!).
+For some added complexity, we also want to make sure the username does not equal the user's actual name (because, security!).
 Of course we will need to validate them but first we need a type to model the data.
 Actually, we will need 2 models.
 
@@ -478,31 +478,31 @@ If we just used a `string`, we would be assuming that a value exists at all.
 
 Now that we have our types, let's define a smart constructor for the model.
 This smart constructor will accept the view model as a parameter, validate it, and return the model type.
-For complex types, we typically define the smart constructor as a method on the view model type.
-This allows us to access the view model data and prevents the model from having to know about the view model.
+For complex types, we typically define the smart constructor as a function in a module named after the view model.
+Then we take the view model as a parameter.
 
 ```fsharp
 module Example.Types
 
 ...
 
-// The validated new user type (the model)
 // The unvalidated new user type (the view model)
 type NewUserVM =
     { Name: string option
       Username: string option
       Password: string option
       EmailAddress: string option }
-with
-member this.MakeNewUser() = 
-    validation {
-        let! name = validation {
-            // validate name
-        }
-        // validate additional fields
-        // validate that the username does not equal the password
-        // return the model type
-    } |> fromVCtx
+
+module NewUserVM =
+    let makeNewUser() = 
+        validation {
+            let! name = validation {
+                // validate name
+            }
+            // validate additional fields
+            // validate that the username does not equal the user's name
+            // return the model type
+        } |> fromVCtx
 ```
 
 The nested `validation` blocks may look familiar from nested `async` computation expressions.
@@ -523,18 +523,18 @@ module Example.Types
 
 ...
 
-member this.MakeNewUser() = 
-    validation {
-        let! name = validation {
-            // if this validation is refuted
-        }
-        let! username = validation {
-            // this validation will never run
-        }
-        // validate additional fields
-        // validate that the username does not equal the password
-        // return the model type
-    } |> fromVCtx
+    let makeNewUser(vm:NewUserVM) = 
+        validation {
+            let! name = validation {
+                // if this validation is refuted
+            }
+            let! username = validation {
+                // this validation will never run
+            }
+            // validate additional fields
+            // validate that the username does not equal the user's name
+            // return the model type
+        } |> fromVCtx
 ```
 
 That's where `and!` comes in.
@@ -554,23 +554,23 @@ module Example.Types
 
 ...
 
-member this.MakeNewUser() = 
-    validation {
-        let! name = validation {
-            // this validation always runs
-        }
-        and! username = validation {
-            // so does this one
-        }
-        and! password = validation {
-            // this one too
-        }
-        and! emailAddress = validation {
-            // you get the idea
-        }
-        // validate that the username does not equal the password
-        // return the model type
-    } |> fromVCtx
+    let makeNewUser(vm:NewUserVM) =  
+        validation {
+            let! name = validation {
+                // this validation always runs
+            }
+            and! username = validation {
+                // so does this one
+            }
+            and! password = validation {
+                // this one too
+            }
+            and! emailAddress = validation {
+                // you get the idea
+            }
+            // validate that the username does not equal the user's name
+            // return the model type
+        } |> fromVCtx
 ```
 
 However, there are a couple of things to keep in mind.
@@ -581,13 +581,13 @@ module Example.Types
 
 ...
 
-        let! name = validation {
-            // validate the name field
-        }
-        and! username = validation {
-            printf "%s" name // this will fail because the `name` variable is not accessible yet
-            // perform additional validation
-        }
+            let! name = validation {
+                // validate the name field
+            }
+            and! username = validation {
+                printf "%s" name // this will fail because the `name` variable is not accessible yet
+                // perform additional validation
+            }
 ...
 
 ```
@@ -599,21 +599,21 @@ module Example.Types
 
 ...
 
-        // if this chain is refuted
-        let! name = validation {
-            ...
-        }
-        and! username = validation {
-            ...
-        }
+            // if this chain is refuted
+            let! name = validation {
+                ...
+            }
+            and! username = validation {
+                ...
+            }
 
-        // this chain will never run
-        let! password = validation {
-            ...
-        }
-        and! emailAddress = validation {
-            ...
-        }
+            // this chain will never run
+            let! password = validation {
+                ...
+            }
+            and! emailAddress = validation {
+                ...
+            }
 
 ...
 
@@ -633,31 +633,31 @@ module Example.Types
 
 ...
 
-member this.MakeNewUser() = 
-    validation {
-        let! name = validation {
-            withField (fun () -> this.Name)
-            // validate name
-            qed
-        }
-        and! username = validation {
-            withField (fun () -> this.Username)
-            // validate username
-            qed
-        }
-        and! password = validation {
-            withField (fun () -> this.Password)
-            // validate password
-            qed
-        }
-        and! emailAddress = validation {
-            withField (fun () -> this.EmailAddress)
-            // validate email address
-            qed
-        }
-        // validate that the username does not equal the password
-        return { NewUser.Name = name; Username = username; Password = password; EmailAddress = emailAddress; }
-    } |> fromVCtx
+    let makeNewUser(vm:NewUserVM) =  
+        validation {
+            let! name = validation {
+                withField (fun () -> this.Name)
+                // validate name
+                qed
+            }
+            and! username = validation {
+                withField (fun () -> this.Username)
+                // validate username
+                qed
+            }
+            and! password = validation {
+                withField (fun () -> this.Password)
+                // validate password
+                qed
+            }
+            and! emailAddress = validation {
+                withField (fun () -> this.EmailAddress)
+                // validate email address
+                qed
+            }
+            // validate that the username does not equal the user's name
+            return { NewUser.Name = name; Username = username; Password = password; EmailAddress = emailAddress; }
+        } |> fromVCtx
 ```
 
 We use the `return` operator to wrap the value to the right in a valid `VCtx`.
@@ -677,7 +677,7 @@ module Example.Types
 
 type NewUserFailure = 
     | RequiredField
-    | EmailAddressMatchesUsername
+    | NameMatchesUsername
     | InvalidName of NameFailure
     | InvalidUsername of UsernameFailure
     | InvalidPassword of PasswordFailure
@@ -685,34 +685,34 @@ type NewUserFailure =
 
 ...
 
-member this.MakeNewUser() = 
-    validation {
-        let! name = validation {
-            withField (fun () -> this.Name)
-            // how do we validate an optional field?
-            qed
-        }
-        and! username = validation {
-            withField (fun () -> this.Username)
-            refuteWith (isRequired RequiredField)
-            refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
-            qed
-        }
-        and! password = validation {
-            withField (fun () -> this.Password)
-            refuteWith (isRequired RequiredField)
-            refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
-            qed
-        }
-        and! emailAddress = validation {
-            withField (fun () -> this.EmailAddress)
-            refuteWith (isRequired RequiredField)
-            refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
-            qed
-        }
-        // validate that the username does not equal the password
-        return { NewUser.name = name; username = username; password = password; emailAddress = emailAddress; }
-    } |> fromVCtx
+    let makeNewUser(vm:NewUserVM) = 
+        validation {
+            let! name = validation {
+                withField (fun () -> this.Name)
+                // how do we validate an optional field?
+                qed
+            }
+            and! username = validation {
+                withField (fun () -> this.Username)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
+                qed
+            }
+            and! password = validation {
+                withField (fun () -> this.Password)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
+                qed
+            }
+            and! emailAddress = validation {
+                withField (fun () -> this.EmailAddress)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
+                qed
+            }
+            // validate that the username does not equal the user's name
+            return { NewUser.name = name; username = username; password = password; emailAddress = emailAddress; }
+        } |> fromVCtx
 ```
 
 That's it.
@@ -738,18 +738,18 @@ The result is that the value held by the `VCtx` changes from a `VCtx<'F, 'A opti
 Let's see it in action.
 
 ```fsharp
-        let! name = validation {
-            withField (fun () -> this.Name)
-            optional (fun v -> validation {
-                withValue v
-                refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
-            })
-            qed
-        }
+            let! name = validation {
+                withField (fun () -> this.Name)
+                optional (fun v -> validation {
+                    withValue v
+                    refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
+                })
+                qed
+            }
 ```
 
 Now, all of our fields are validated.
-We still need to check and see if the username and password are equal.
+We still need to check and see if the username and user's name are equal.
 We can do that with a global validation.
 
 ### Global Validation
@@ -764,41 +764,41 @@ module Example.Types
 
 ...
 
-member this.MakeNewUser() = 
-    validation {
-        let! name = validation {
-            withField (fun () -> this.Name)
-            optional (fun v -> validation {
-                withValue v
-                refuteWithProof (mkName >> Proof.mapInvalid InvalidEmailAddress)
-            })
-            qed
-        }
-        and! username = validation {
-            withField (fun () -> this.Username)
-            refuteWith (isRequired RequiredField)
-            refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
-            qed
-        }
-        and! password = validation {
-            withField (fun () -> this.Password)
-            refuteWith (isRequired RequiredField)
-            refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
-            qed
-        }
-        and! emailAddress = validation {
-            withField (fun () -> this.EmailAddress)
-            refuteWith (isRequired RequiredField)
-            refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
-            qed
-        }
-        and! _ = validation {
-            withValue this
-            disputeWithFact EmailAddressMatchesUsername (fun a -> a.EmailAddress = a.Username |> not)
-            qed
-        }
-        return { NewUser.name = name; username = username; password = password; emailAddress = emailAddress; }
-    } |> fromVCtx
+    let makeNewUser(vm:NewUserVM) = 
+        validation {
+            let! name = validation {
+                withField (fun () -> this.Name)
+                optional (fun v -> validation {
+                    withValue v
+                    refuteWithProof (mkName >> Proof.mapInvalid InvalidEmailAddress)
+                })
+                qed
+            }
+            and! username = validation {
+                withField (fun () -> this.Username)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
+                qed
+            }
+            and! password = validation {
+                withField (fun () -> this.Password)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
+                qed
+            }
+            and! emailAddress = validation {
+                withField (fun () -> this.EmailAddress)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
+                qed
+            }
+            and! _ = validation {
+                withValue this
+                disputeWithFact NameMatchesUsername (fun a -> a.Name = a.Username |> not)
+                qed
+            }
+            return { NewUser.name = name; username = username; password = password; emailAddress = emailAddress; }
+        } |> fromVCtx
 ```
 
 We need to include this in the `let!` chain but we can ignore the result.
@@ -808,8 +808,186 @@ Let's try validating a type nested inside another type.
 
 ### Validating Nested Types
 
+Right now, our model takes an email address.
+But what if we wanted to let the user choose how we contact them?
+Maybe we want to give them the option to be contacted by email, text message, or a phone call.
+Let's add some new types.
 
+```fsharp
+module Example.Types
 
+...
+
+// The validated contact type (the model)
+type Contact =
+    | Call of PhoneNumber
+    | Text of PhoneNumber
+    | Email of EmailAddress
+      
+type ContactFailure = 
+    | MissingContactType
+    | MissingContactDetails
+    | InvalidPhoneNumber of PhoneNumberFailure
+    | InvalidEmailAddress of EmailAddressFailure
+
+type ContactType =
+    | Call
+    | Text
+    | Email
+
+// The unvalidated contact type (the view model)
+type ContactVM =
+    { ContactType: ContactType option
+      ContactDetails: string option }
+
+module ContactVM =
+    let makeContact(vm:ContactVM) =
+        validation {
+            let! typ = validation {
+                withField (fun () -> vm.ContactType)
+                refuteWith (isRequired MissingContactType)
+                qed
+            }
+            and! d = validation {
+                withField (fun () -> vm.ContactDetails)
+                refuteWith (isRequired MissingContactDetails)
+                qed
+            }
+            let! result =
+                match typ with
+                | ContactType.Call -> validation {
+                        withField (fun () -> vm.ContactDetails) d
+                        refuteWithProof (PhoneNumber.make >> Proof.mapInvalid InvalidPhoneNumber)
+                        qed (fun pn -> Contact.Call pn)
+                    }
+                | ContactType.Text -> validation {
+                        withField (fun () -> vm.ContactDetails) d
+                        refuteWithProof (PhoneNumber.make >> Proof.mapInvalid InvalidPhoneNumber)
+                        qed (fun pn -> Contact.Text pn)
+                    }
+                | ContactType.Email -> validation {
+                        withField (fun () -> vm.ContactDetails) d
+                        refuteWithProof (EmailAddress.make >> Proof.mapInvalid InvalidEmailAddress)
+                        qed (fun pn -> Contact.Email pn)
+                    }
+            return result
+        } |> fromVCtx
+```
+
+The `Contact` type is a discriminated union of the contact method and the address/phone number used for the message.
+Because our endpoint will be taking in JSON, we have to build the `ContactVM` in a more object-oriented way.
+We have an enum to represent the contact methods and a simple string field to represent the address/phone number.
+We won't go into detail on the validation method here, but the implementation is included.
+There is also a `PhoneNumber` primitive type but we're not going to cover that either.
+Now we just need to update our `NewUser` types include the new field.
+
+```fsharp
+// The validated new user type (the model)
+type NewUser = private { 
+    name: Name option
+    username: Username
+    password: Password
+    contact: Contact 
+} with
+member public this.Name = this.name
+member public this.Username = this.username
+member public this.Password = this.password
+member public this.Contact = this.contact
+
+// The unvalidated new user type (the view model)
+type NewUserVM =
+    { Name: string option
+      Username: string option
+      Password: string option
+      Contact: ContactVM option }
+
+module NewUserVM =
+    let makeNewUser(vm:NewUserVM) = 
+        validation {
+            // ... nothing new here
+            and! contact = validation {
+                withField (fun () -> this.Contact)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
+                qed
+            }
+            // ... nothing new here
+            return { NewUser.name = name; username = username; password = password; contact = contact; }
+        } |> fromVCtx
+```
+
+The validation expression for the contact type should look pretty familiar.
+It's exactly the same as validating the primitive types!
+Great, but what about lists and other collections?
+
+### Validating Collections
+
+Let's say that we want users to be able to list many contact options and then select their preferred one.
+That way we have several options to reach them if the primary method fails.
+We already have the `Contact` type, so we just need to update our `NewUser` models.
+
+```fsharp
+module Example.Types
+
+...
+
+// The validated new user type (the model)
+type NewUser = private { 
+    name: Name option
+    username: Username
+    password: Password
+    preferredContact: Contact // we renamed the `contact` field
+    additionalContacts: Contact list 
+} with
+    member public this.Name = this.name
+    member public this.Username = this.username
+    member public this.Password = this.password
+    member public this.PreferredContact = this.preferredContact
+    member public this.AdditionalContacts = this.additionalContacts
+
+type NewUserFailure = 
+    | RequiredField
+    | NameMatchesUsername
+    | InvalidName of NameFailure
+    | InvalidUsername of UsernameFailure
+    | InvalidPassword of PasswordFailure
+    | InvalidContact of ContactFailure
+
+// The unvalidated new user type (the view model)
+type NewUserVM =
+    { Name: string option
+      Username: string option
+      Password: string option
+      PreferredContact: ContactVM option
+      AdditionalContacts: ContactVM list }
+
+module NewUserVM =
+    let makeNewUser(vm:NewUserVM) = 
+        validation {
+            // ... nothing new here
+            and! preferredContact = validation {
+                withField (fun () -> this.PreferredContact)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
+                qed
+            }
+            and! additionalContacts = validation {
+                withField (fun () -> this.AdditionalContacts)
+                refuteEachWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
+                qed List.ofSeq
+            }
+            // ... nothing new here
+            return { NewUser.name = name; username = username; password = password; preferredContact = preferredContact; additionalContacts = additionalContacts }
+        } |> fromVCtx
+```
+
+Here, we added a `AdditionalContacts` field which is a list of contacts.
+To validate it, we used our existing validation logic and the `refuteEachWithProof` operator.
+This operator accepts a validation function that returns a `Proof` type.
+Each element of the list is passed to the validation function.
+Any errors are added to the list of field level failures with the index of the element.
+
+### Serializing The Proof Type
 
 
 

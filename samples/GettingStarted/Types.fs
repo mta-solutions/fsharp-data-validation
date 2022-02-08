@@ -151,33 +151,34 @@ type ContactType =
 type ContactVM =
     { ContactType: ContactType option
       ContactDetails: string option }
-    with
-    member this.MakeContact() =
+
+module ContactVM =
+    let makeContact(vm:ContactVM) =
         validation {
             let! typ = validation {
-                withField (fun () -> this.ContactType)
+                withField (fun () -> vm.ContactType)
                 refuteWith (isRequired MissingContactType)
                 qed
             }
             and! d = validation {
-                withField (fun () -> this.ContactDetails)
+                withField (fun () -> vm.ContactDetails)
                 refuteWith (isRequired MissingContactDetails)
                 qed
             }
             let! result =
                 match typ with
                 | ContactType.Call -> validation {
-                        withField (fun () -> this.ContactDetails) d
+                        withField (fun () -> vm.ContactDetails) d
                         refuteWithProof (PhoneNumber.make >> Proof.mapInvalid InvalidPhoneNumber)
                         qed (fun pn -> Contact.Call pn)
                     }
                 | ContactType.Text -> validation {
-                        withField (fun () -> this.ContactDetails) d
+                        withField (fun () -> vm.ContactDetails) d
                         refuteWithProof (PhoneNumber.make >> Proof.mapInvalid InvalidPhoneNumber)
                         qed (fun pn -> Contact.Text pn)
                     }
                 | ContactType.Email -> validation {
-                        withField (fun () -> this.ContactDetails) d
+                        withField (fun () -> vm.ContactDetails) d
                         refuteWithProof (EmailAddress.make >> Proof.mapInvalid InvalidEmailAddress)
                         qed (fun pn -> Contact.Email pn)
                     }
@@ -189,13 +190,13 @@ type NewUser = private {
     name: Name option
     username: Username
     password: Password
-    preferedContact: Contact
+    preferredContact: Contact
     additionalContacts: Contact list 
 } with
     member public this.Name = this.name
     member public this.Username = this.username
     member public this.Password = this.password
-    member public this.PreferedContact = this.preferedContact
+    member public this.PreferredContact = this.preferredContact
     member public this.AdditionalContacts = this.additionalContacts
 
 type NewUserFailure = 
@@ -211,46 +212,47 @@ type NewUserVM =
     { Name: string option
       Username: string option
       Password: string option
-      PreferedContact: ContactVM option
+      PreferredContact: ContactVM option
       AdditionalContacts: ContactVM list }
-with
-member this.MakeNewUser() = 
-    validation {
-        let! name = validation {
-            withField (fun () -> this.Name)
-            optional (fun v -> validation {
-                withValue v
-                refuteWithProof (Name.make >> Proof.mapInvalid InvalidName)
-            })
-            qed
-        }
-        and! username = validation {
-            withField (fun () -> this.Username)
-            refuteWith (isRequired RequiredField)
-            refuteWithProof (Username.make >> Proof.mapInvalid InvalidUsername)
-            qed
-        }
-        and! password = validation {
-            withField (fun () -> this.Password)
-            refuteWith (isRequired RequiredField)
-            refuteWithProof (Password.make >> Proof.mapInvalid InvalidPassword)
-            qed
-        }
-        and! preferedContact = validation {
-            withField (fun () -> this.PreferedContact)
-            refuteWith (isRequired RequiredField)
-            refuteWithProof (fun pc -> pc.MakeContact() |> Proof.mapInvalid InvalidContact)
-            qed
-        }
-        and! additionalContacts = validation {
-            withField (fun () -> this.AdditionalContacts)
-            refuteEachWithProof (fun (pc: ContactVM) -> pc.MakeContact() |> Proof.mapInvalid InvalidContact)
-            qed List.ofSeq
-        }
-        and! _ = validation {
-            withValue this
-            disputeWithFact NameMatchesUsername (fun a -> a.Name = a.Username |> not)
-            qed
-        }
-        return { NewUser.name = name; username = username; password = password; preferedContact = preferedContact; additionalContacts = additionalContacts }
-    } |> fromVCtx
+
+module NewUserVM =
+    let makeNewUser (vm: NewUserVM) = 
+        validation {
+            let! name = validation {
+                withField (fun () -> vm.Name)
+                optional (fun v -> validation {
+                    withValue v
+                    refuteWithProof (Name.make >> Proof.mapInvalid InvalidName)
+                })
+                qed
+            }
+            and! username = validation {
+                withField (fun () -> vm.Username)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (Username.make >> Proof.mapInvalid InvalidUsername)
+                qed
+            }
+            and! password = validation {
+                withField (fun () -> vm.Password)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (Password.make >> Proof.mapInvalid InvalidPassword)
+                qed
+            }
+            and! preferredContact = validation {
+                withField (fun () -> vm.PreferredContact)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
+                qed
+            }
+            and! additionalContacts = validation {
+                withField (fun () -> vm.AdditionalContacts)
+                refuteEachWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
+                qed List.ofSeq
+            }
+            and! _ = validation {
+                withValue vm
+                disputeWithFact NameMatchesUsername (fun a -> a.Name = a.Username |> not)
+                qed
+            }
+            return { NewUser.name = name; username = username; password = password; preferredContact = preferredContact; additionalContacts = additionalContacts }
+        } |> fromVCtx
