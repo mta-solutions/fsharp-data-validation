@@ -1,23 +1,15 @@
-﻿[<AutoOpen>]
+[<AutoOpen>]
 module FSharp.Data.Validation.Default
 
 open System.Collections.Generic
 open System.Linq
+open System.Text.RegularExpressions
 
 let fromVCtx<'F, 'A> (ctx:VCtx<'F, 'A>): Proof<'F, 'A> =
     match ctx with
     | ValidCtx a                -> Valid a
     | DisputedCtx (gfs, lfs, _) -> Invalid (gfs, lfs)
     | RefutedCtx (gfs, lfs)     -> Invalid (gfs, lfs)
-
-/// An interfaces that represents a value that can be validated.
-type IValidatable<'F, 'B> =
-    abstract Validation: unit -> VCtx<'F, 'B>
-
-/// Runs the validations for a given value and returns the proof.
-let validate<'F, 'B> (a:IValidatable<'F, 'B>): Proof<'F, 'B> =
-    let ctx = a.Validation()
-    fromVCtx ctx
 
 /// Checks that an `Option` value is a `Some`.
 /// If not, it adds the given failure to the result and validation end.
@@ -107,51 +99,6 @@ let hasElem e (a:#seq<_>) = a.Contains(e)
 /// Checks that a `IEnumerable` does not have a given element.
 /// If it has element, it adds the given failure to the result and validation continues.
 let doesNotHaveElem e (a:#seq<_>) = a.Contains(e) |> not
-
-/// If any element is valid, the entire value is valid.
-let ifAny (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
-    let xs = ValueCtx.getValue v
-    let fs = List.ofSeq (Seq.map fn xs |> Utilities.catOptions)
-    if fs.Count() = xs.Count()
-        then validation { disputeMany v fs }
-        else validation.Return(v)
-
-/// Every element must be valid.
-let ifAll (fn:'U -> 'F option) (v:ValueCtx<'T> when 'T :> IEnumerable<'U>) =
-    let xs = ValueCtx.getValue v
-    let fs = List.ofSeq (Seq.map fn xs |> Utilities.catOptions)
-    match fs with
-    | [] -> validation.Return(v)
-    | _  -> validation { disputeMany v fs }
-
-/// Validate each element with a given function.
-let ifEach fn v =
-    let xs = ValueCtx.getValue v
-    let es = Seq.map fn xs
-    match List.ofSeq(Utilities.errors es) with
-    | []  -> validation.Return(Utilities.oks es |> ValueCtx.setValue v)
-    | fs -> validation { refuteMany v fs }
-
-/// Validate each element with a given function.
-let ifEachProven fn v =
-    let vs = ValueCtx.getValue v |> Seq.map (fun a -> fn a |> Proof.map Seq.singleton)
-    let p = (Proof.Valid(Seq.empty), vs) ||> Seq.fold (fun acc p' ->
-        match p' with
-        | Valid b              ->
-            match acc with
-            | Valid b'              -> Valid (Seq.append b' b)
-            | Invalid (gfs',lfs')   -> Invalid (gfs', lfs')
-        | Invalid (gfs,lfs)    ->
-            match acc with
-            | Valid _               -> Invalid (gfs, lfs)
-            | Invalid (gfs',lfs')   -> Invalid (List.append gfs' gfs, Utilities.mergeFailures lfs lfs')
-    )
-    match p with
-        | Valid es -> validation.Return(ValueCtx.setValue v es)
-        | Invalid (gfs, lfs) ->
-            match v with
-            | Global _      -> RefutedCtx (gfs, lfs)
-            | Field (n,_)   -> RefutedCtx ([], Utilities.mergeFailures lfs (Map.ofList [ ([n], gfs) ]))
 
 /// tests if a 'Proof' is valid.
 let isValid p =

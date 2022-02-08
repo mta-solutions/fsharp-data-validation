@@ -1,16 +1,16 @@
-﻿module FSharp.Data.Valdation.Samples.ComplexTypes
+﻿module FSharp.Data.Valdation.Sample
 
 open FSharp.Data.Validation
 
 open FSharp.Data.Validation.Samples.Primitives
 
 // Model
-type User = {
-        Username          : Username;
-        EmailAddress      : EmailAddress option;
-        PhoneNumber       : PhoneNumber option;
-        ContactPreference : ContactPreference;
-        ZipCode           : ZipCode option;
+type User = private { 
+        Username          : Username
+        EmailAddress      : EmailAddress option
+        PhoneNumber       : PhoneNumber option
+        ContactPreference : ContactPreference
+        ZipCode           : ZipCode option 
     }
 
 // View Model
@@ -20,50 +20,51 @@ type UserVM =
       PhoneNumber       : string option
       ContactPreference : ContactPreference option
       ZipCode           : string option }
-    interface IValidatable<MyFailures, User> with
-        member this.Validation() =
-            validation {
-                let! cp = validation {
-                    withField (mkName (nameof this.ContactPreference)) this.ContactPreference
-                    refuteWith (isRequired RequiredFailure)
-                    qed
-                }
-                and! un = validation {
-                    withField (mkName (nameof this.Username)) this.Username
-                    refuteWith (isRequired RequiredFailure)
-                    refuteWithProof mkUsername
-                    qed
-                }
-                and! ea = validation {
-                    withField (mkName (nameof this.EmailAddress)) this.EmailAddress
-                    optional (fun v -> validation {
-                        withValue v
-                        refuteWithProof mkEmailAddress
-                    })
-                    disputeWith (isRequiredWhen RequiredFailure (this.ContactPreference = Some ContactPreference.Email))
-                    qed
-                }
-                and! pn = validation {
-                    withField (mkName (nameof this.PhoneNumber)) this.PhoneNumber
-                    disputeWith (isRequiredWhen RequiredFailure (this.ContactPreference = Some ContactPreference.Phone))
-                    optional (fun v -> validation {
-                        withValue v
-                        refuteWithProof mkPhoneNumber
-                    })
-                    qed
-                }
-                and! z = validation {
-                    withField (mkName (nameof this.ZipCode)) this.ZipCode
-                    optional (fun v -> validation {
-                        withValue v
-                        refuteWithProof mkZipCode
-                    })
-                    qed
-                }
-                and! _ = validation {
-                    withValue this
-                    disputeWithFact OtherFailure (fun a -> a.EmailAddress = a.Username |> not)
-                    qed
-                }
-                return { User.Username = un; EmailAddress = ea; PhoneNumber = pn; ContactPreference = cp; ZipCode = z }
+
+module UserVM =
+    let makeUser(vm:UserVM) =
+        validation {
+            let! cp = validation {
+                withField (fun () -> vm.ContactPreference)
+                refuteWith (isRequired RequiredField)
+                qed
             }
+            and! un = validation {
+                withField (fun () -> vm.Username)
+                refuteWith (isRequired RequiredField)
+                refuteWithProof (Username.make >> Proof.mapInvalid InvalidUsername)
+                qed
+            }
+            and! ea = validation {
+                withField (fun () -> vm.EmailAddress)
+                optional (fun v -> validation {
+                    withValue v
+                    refuteWithProof (EmailAddress.make >> Proof.mapInvalid InvalidEmailAddress)
+                })
+                disputeWith (isRequiredWhen RequiredField (vm.ContactPreference = Some ContactPreference.Email))
+                qed
+            }
+            and! pn = validation {
+                withField (fun () -> vm.PhoneNumber)
+                disputeWith (isRequiredWhen RequiredField (vm.ContactPreference = Some ContactPreference.Phone))
+                optional (fun v -> validation {
+                    withValue v
+                    refuteWithProof (PhoneNumber.make >> Proof.mapInvalid InvalidPhoneNumber)
+                })
+                qed
+            }
+            and! z = validation {
+                withField (fun () -> vm.ZipCode)
+                optional (fun v -> validation {
+                    withValue v
+                    refuteWithProof (ZipCode.make >> Proof.mapInvalid InvalidZipCode)
+                })
+                qed
+            }
+            and! _ = validation {
+                withValue vm
+                disputeWithFact EmailAddressMatchesUsername (fun a -> a.EmailAddress = a.Username |> not)
+                qed
+            }
+            return { User.Username = un; EmailAddress = ea; PhoneNumber = pn; ContactPreference = cp; ZipCode = z }
+        } |> fromVCtx

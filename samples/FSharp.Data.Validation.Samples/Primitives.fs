@@ -1,54 +1,91 @@
 ﻿module FSharp.Data.Validation.Samples.Primitives
 
+open System
 open System.Text.RegularExpressions
+open System.Linq
 
 open FSharp.Data.Validation
 
+type UsernameFailures = 
+    | Empty
+
+type EmailAddressFailures = 
+    | InvalidFormat
+
+type PhoneNumberFailures = 
+    | Empty
+    | NumericStringOnly
+    | InvalidFormat
+
+type ZipCodeFailures = 
+    | Empty
+    | NumericStringOnly
+    | InvalidFormat
+
 type MyFailures =
-    | NameFailure
-    | LengthFailure
-    | EmailFailure
-    | RequiredFailure
-    | OtherFailure
+    | RequiredField
+    | InvalidUsername of UsernameFailures
+    | InvalidEmailAddress of EmailAddressFailures
+    | InvalidPhoneNumber of PhoneNumberFailures
+    | InvalidZipCode of ZipCodeFailures
+    | EmailAddressMatchesUsername
+
+let private isNumericString (str:string) = 
+    str.All(fun c -> Char.IsNumber(c))
 
 // app specific types
-type Username = { unUsername : string }
+type Username = private Username of string
 
-let mkUsername s =
-    validation {
-        withValue s
-        disputeWithFact NameFailure isNotNull
-        whenProven (fun v -> { unUsername = v } )
-    } |> fromVCtx
+module Username =
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact UsernameFailures.Empty isNotNull
+            qed Username
+        } |> fromVCtx
 
-type EmailAddress = { unEmailAddress : string }
+    let unwrap (Username s) = s
 
-let mkEmailAddress s =
-    validation {
-        withValue s
-        disputeWithFact EmailFailure (fun s -> Regex.IsMatch(s, "[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+"))
-        whenProven (fun v -> { unEmailAddress = v })
-    } |> fromVCtx
+type EmailAddress = private EmailAddress of string
 
-type PhoneNumber = { unPhoneNumber : string }
+module EmailAddress = 
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact EmailAddressFailures.InvalidFormat (fun s -> Regex.IsMatch(s, "[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+"))
+            qed EmailAddress
+        } |> fromVCtx
 
+    let unwrap (EmailAddress s) = s
 
-let mkPhoneNumber s =
-    validation {
-        withValue s
-        disputeWithFact LengthFailure (isLength 7)
-        whenProven (fun v -> { unPhoneNumber = v })
-    } |> fromVCtx
+type PhoneNumber = private PhoneNumber of string
+
+module PhoneNumber =
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact PhoneNumberFailures.Empty isNotNull
+            disputeWithFact PhoneNumberFailures.NumericStringOnly isNumericString
+            disputeWithFact PhoneNumberFailures.InvalidFormat (isLength 10)
+            qed PhoneNumber
+        } |> fromVCtx
+
+    let unwrap (PhoneNumber s) = s
 
 type ContactPreference =
     | Email
     | Phone
 
-type ZipCode = { unZipCode : string }
+type ZipCode = private ZipCode of string
 
-let mkZipCode s =
-    validation {
-        withValue s
-        disputeWithFact RequiredFailure isNotNull
-        whenProven (fun v -> { unZipCode = v })
-    } |> fromVCtx
+module ZipCode =
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact ZipCodeFailures.Empty isNotNull
+            disputeWithFact ZipCodeFailures.NumericStringOnly isNumericString
+            disputeWithFact ZipCodeFailures.InvalidFormat (isLength 5)
+            qed ZipCode
+        } |> fromVCtx
+        
+    let unwrap (ZipCode s) = s
