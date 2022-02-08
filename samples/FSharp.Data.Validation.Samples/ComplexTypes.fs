@@ -31,14 +31,14 @@ type UserVM =
             and! un = validation {
                 withField (fun () -> this.Username)
                 refuteWith (isRequired RequiredField)
-                refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
+                refuteWithProof (Username.make >> Proof.mapInvalid InvalidUsername)
                 qed
             }
             and! ea = validation {
                 withField (fun () -> this.EmailAddress)
                 optional (fun v -> validation {
                     withValue v
-                    refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
+                    refuteWithProof (EmailAddress.make >> Proof.mapInvalid InvalidEmailAddress)
                 })
                 disputeWith (isRequiredWhen RequiredField (this.ContactPreference = Some ContactPreference.Email))
                 qed
@@ -48,7 +48,7 @@ type UserVM =
                 disputeWith (isRequiredWhen RequiredField (this.ContactPreference = Some ContactPreference.Phone))
                 optional (fun v -> validation {
                     withValue v
-                    refuteWithProof (mkPhoneNumber >> Proof.mapInvalid InvalidPhoneNumber)
+                    refuteWithProof (PhoneNumber.make >> Proof.mapInvalid InvalidPhoneNumber)
                 })
                 qed
             }
@@ -56,7 +56,7 @@ type UserVM =
                 withField (fun () -> this.ZipCode)
                 optional (fun v -> validation {
                     withValue v
-                    refuteWithProof (mkZipCode >> Proof.mapInvalid InvalidZipCode)
+                    refuteWithProof (ZipCode.make >> Proof.mapInvalid InvalidZipCode)
                 })
                 qed
             }

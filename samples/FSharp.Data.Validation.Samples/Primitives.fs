@@ -30,38 +30,47 @@ type MyFailures =
     | InvalidZipCode of ZipCodeFailures
     | EmailAddressMatchesUsername
 
-// app specific types
-type Username = private Username of string
-
-let mkUsername s =
-    validation {
-        withValue s
-        disputeWithFact UsernameFailures.Empty isNotNull
-        qed Username
-    } |> fromVCtx
-
-type EmailAddress = private EmailAddress of string
-
-let mkEmailAddress s =
-    validation {
-        withValue s
-        disputeWithFact EmailAddressFailures.InvalidFormat (fun s -> Regex.IsMatch(s, "[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+"))
-        qed EmailAddress
-    } |> fromVCtx
-
-type PhoneNumber = private PhoneNumber of string
-
 let private isNumericString (str:string) = 
     str.All(fun c -> Char.IsNumber(c))
 
-let mkPhoneNumber s =
-    validation {
-        withValue s
-        disputeWithFact PhoneNumberFailures.Empty isNotNull
-        disputeWithFact PhoneNumberFailures.NumericStringOnly isNumericString
-        disputeWithFact PhoneNumberFailures.InvalidFormat (isLength 10)
-        qed PhoneNumber
-    } |> fromVCtx
+// app specific types
+type Username = private Username of string
+
+module Username =
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact UsernameFailures.Empty isNotNull
+            qed Username
+        } |> fromVCtx
+
+    let unwrap (Username s) = s
+
+type EmailAddress = private EmailAddress of string
+
+module EmailAddress = 
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact EmailAddressFailures.InvalidFormat (fun s -> Regex.IsMatch(s, "[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+"))
+            qed EmailAddress
+        } |> fromVCtx
+
+    let unwrap (EmailAddress s) = s
+
+type PhoneNumber = private PhoneNumber of string
+
+module PhoneNumber =
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact PhoneNumberFailures.Empty isNotNull
+            disputeWithFact PhoneNumberFailures.NumericStringOnly isNumericString
+            disputeWithFact PhoneNumberFailures.InvalidFormat (isLength 10)
+            qed PhoneNumber
+        } |> fromVCtx
+
+    let unwrap (PhoneNumber s) = s
 
 type ContactPreference =
     | Email
@@ -69,11 +78,14 @@ type ContactPreference =
 
 type ZipCode = private ZipCode of string
 
-let mkZipCode s =
-    validation {
-        withValue s
-        disputeWithFact ZipCodeFailures.Empty isNotNull
-        disputeWithFact ZipCodeFailures.NumericStringOnly isNumericString
-        disputeWithFact ZipCodeFailures.InvalidFormat (isLength 5)
-        qed ZipCode
-    } |> fromVCtx
+module ZipCode =
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact ZipCodeFailures.Empty isNotNull
+            disputeWithFact ZipCodeFailures.NumericStringOnly isNumericString
+            disputeWithFact ZipCodeFailures.InvalidFormat (isLength 5)
+            qed ZipCode
+        } |> fromVCtx
+        
+    let unwrap (PhoneNumber s) = s
