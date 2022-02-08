@@ -78,7 +78,8 @@ module Example.Types
 
 ...
 
-let mkEmailAddress (str:string): ReturnType?? = 
+module EmailAddress =
+    let make (str:string): ReturnType?? = 
     // validate
 ```
 
@@ -118,8 +119,8 @@ open FSharp.Data.Validation
 
 ...
 
-let mkEmailAddress (str:string): Proof<'F??, EmailAddress> = 
-    // validation
+    let make (str:string): Proof<'F??, EmailAddress> = 
+        // validation
 ```
 
 So, what type should we use for `'F`?
@@ -144,9 +145,10 @@ type EmailAddressValidationFailure =
     | MissingUsername
     | MissingAtSymbol
     | MultipleAtSymbols
-    
-let mkEmailAddress (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
-    // validation
+
+module EmailAddress =
+    let make (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
+        // validation
 ```
 
 It is important that there be one failure type for each data type you want to validate.
@@ -172,10 +174,10 @@ module Example.Types
 
 ...
     
-let mkEmailAddress (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
-    validation {
-        // validation stuff
-    } |> fromVCtx
+    let make (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
+        validation {
+            // validation stuff
+        } |> fromVCtx
 ```
 
 The first thing to notice is the `validation` computation expression.
@@ -201,12 +203,12 @@ module Example.Types
 
 ...
     
-let mkEmailAddress (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
-    validation {
-        withValue str
-        // validation stuff
-        qed EmailAddress
-    } |> fromVCtx
+    let make (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
+        validation {
+            withValue str
+            // validation stuff
+            qed EmailAddress
+        } |> fromVCtx
 ```
 
 ### `withValue`, `withField`, `qed`, and `ValueCtx`
@@ -294,20 +296,20 @@ module Example.Types
 
 ...
     
-let mkEmailAddress (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
-    validation {
-        withValue str
-        refuteWith (fun s ->
-            let ss = s.Split([| '@' |])
-            match ss.Length with
-            | 0 -> Error MissingAtSymbol
-            | 1 -> Ok ss
-            | _ -> Error MultipleAtSymbols
-        )
-        disputeWithFact MissingUsername (fun ss -> isNotNull ss[0])
-        disputeWithFact MissingDomain (fun ss -> isNotNull ss[1])
-        qed (fun ss -> EmailAddress (sprintf "%s@%s" ss[0] ss[1]))
-    } |> fromVCtx
+    let make (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
+        validation {
+            withValue str
+            refuteWith (fun s ->
+                let ss = s.Split([| '@' |])
+                match ss.Length with
+                | 0 -> Error MissingAtSymbol
+                | 1 -> Ok ss
+                | _ -> Error MultipleAtSymbols
+            )
+            disputeWithFact MissingUsername (fun ss -> isNotNull ss[0])
+            disputeWithFact MissingDomain (fun ss -> isNotNull ss[1])
+            qed (fun ss -> EmailAddress (sprintf "%s@%s" ss[0] ss[1]))
+        } |> fromVCtx
 ```
 
 ### The `dispute*` and `refute*` Operations
@@ -387,22 +389,22 @@ module Example.Types
 
 ...
     
-let mkEmailAddress (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
-    validation {
-        withValue str
-        refuteWith (fun s -> // the string passed into `withValue` above is passed in here
-            let ss = s.Split([| '@' |])
-            match ss.Length with
-            | 0 -> Error MissingAtSymbol
-            | 1 -> Ok ss // The result has the type of `string[]`
-            | _ -> Error MultipleAtSymbols
-        )
-        // the `string[]` returned above is passed in to the function here
-        disputeWithFact MissingUsername (fun ss -> isNotNull ss[0])
-        disputeWithFact MissingDomain (fun ss -> isNotNull ss[1])
-        // the `string[]` returned above is passed in to the function here and transformed into an `EmailAddress`
-        qed (fun ss -> EmailAddress (sprintf "%s@%s" ss[0] ss[1]))
-    } |> fromVCtx
+    let make (str:string): Proof<EmailAddressValidationFailure, EmailAddress> = 
+        validation {
+            withValue str
+            refuteWith (fun s -> // the string passed into `withValue` above is passed in here
+                let ss = s.Split([| '@' |])
+                match ss.Length with
+                | 0 -> Error MissingAtSymbol
+                | 1 -> Ok ss // The result has the type of `string[]`
+                | _ -> Error MultipleAtSymbols
+            )
+            // the `string[]` returned above is passed in to the function here
+            disputeWithFact MissingUsername (fun ss -> isNotNull ss[0])
+            disputeWithFact MissingDomain (fun ss -> isNotNull ss[1])
+            // the `string[]` returned above is passed in to the function here and transformed into an `EmailAddress`
+            qed (fun ss -> EmailAddress (sprintf "%s@%s" ss[0] ss[1]))
+        } |> fromVCtx
 ```
 
 Now that we have our validation function, let's revisit our original `notifyUser` function.
@@ -476,7 +478,8 @@ If we just used a `string`, we would be assuming that a value exists at all.
 
 Now that we have our types, let's define a smart constructor for the model.
 This smart constructor will accept the view model as a parameter, validate it, and return the model type.
-For complex types, we typically define the smart constructor as a static method on the model type.
+For complex types, we typically define the smart constructor as a method on the view model type.
+This allows us to access the view model data and prevents the model from having to know about the view model.
 
 ```fsharp
 module Example.Types
