@@ -191,17 +191,18 @@ type VCtxBuilder() =
     [<CustomOperation("refute", MaintainsVariableSpaceUsingBind=true)>]
     member this.Refute(c: VCtx<'F, ValueCtx<'A>>, f) = this.Bind(c, fun v -> this.Refute(v, f))
 
-    member private this.Refute(v: ValueCtx<'A>, f) = this.RefuteMany(v, [f])
+    member private this.Refute(v: ValueCtx<'A>, f) = this.RefuteMany(v, NonEmptyList.singleton f)
 
     /// Adds validation failures to the result and ends validation.
     [<CustomOperation("refuteMany", MaintainsVariableSpaceUsingBind=true)>]
-    member this.RefuteMany(c: VCtx<'F, ValueCtx<'A>>, fs) = this.Bind(c, fun v -> this.RefuteMany(v, fs))
+    member this.RefuteMany(c: VCtx<'F, ValueCtx<'A>>, fs:NonEmptyList<'F>) = this.Bind(c, fun v -> this.RefuteMany(v, fs))
 
-    member private this.RefuteMany(v: ValueCtx<'A>, fs) =
+    member private this.RefuteMany(v: ValueCtx<'A>, fs:NonEmptyList<'F>) =
+        let fs' = NonEmptyList.toList fs
         match v with
-        | Element (i, _)    -> RefutedCtx (List.empty, (Map.add [VCtx.mkElementName i] fs Map.empty))
-        | Field (n, _)      -> RefutedCtx (List.empty, (Map.add [n] fs Map.empty))
-        | Global _          -> RefutedCtx (fs, Map.empty)
+        | Element (i, _)    -> RefutedCtx (List.empty, (Map.add [VCtx.mkElementName i] fs' Map.empty))
+        | Field (n, _)      -> RefutedCtx (List.empty, (Map.add [n] fs' Map.empty))
+        | Global _          -> RefutedCtx (fs', Map.empty)
 
     /// Performs a validation using a given function and handles the result.
     /// If the result is `Error f`, a validation failure is added to the result and validation ends.
@@ -211,6 +212,17 @@ type VCtxBuilder() =
         this.Bind(c, fun v ->
             match fn (ValueCtx.getValue v) with
             | Error f   -> this.Refute(v, f)
+            | Ok b      -> this.Return(ValueCtx.setValue v b)
+        )
+
+    /// Performs a validation using a given function and handles the result.
+    /// If the result is `Error fs`, a validation failure is added to the result and validation ends.
+    /// If the result is `Ok b`, validation continues with the new value.
+    [<CustomOperation("refuteWithMany", MaintainsVariableSpaceUsingBind=true)>]
+    member this.RefuteWith(c:VCtx<'F, ValueCtx<'A>>, fn:'A -> Result<'B, NonEmptyList<'F>>): VCtx<'F, ValueCtx<'B>> =
+        this.Bind(c, fun v ->
+            match fn (ValueCtx.getValue v) with
+            | Error fs  -> this.RefuteMany(v, fs)
             | Ok b      -> this.Return(ValueCtx.setValue v b)
         )
 
@@ -275,17 +287,18 @@ type VCtxBuilder() =
     [<CustomOperation("dispute", MaintainsVariableSpace=true)>]
     member this.Dispute(c:VCtx<'F, ValueCtx<'A>>, f) = this.Bind(c, fun v -> this.Dispute(v, f))
 
-    member private this.Dispute(v, f) = this.DisputeMany(v, [f])
+    member private this.Dispute(v, f) = this.DisputeMany(v, NonEmptyList.singleton f)
 
     /// Adds validation failures to the result and continues validation.
     [<CustomOperation("disputeMany", MaintainsVariableSpace=true)>]
-    member this.DisputeMany(c:VCtx<'F, ValueCtx<'A>>, fs) = this.Bind(c, fun v -> this.DisputeMany(v, fs))
+    member this.DisputeMany(c:VCtx<'F, ValueCtx<'A>>, fs:NonEmptyList<'F>) = this.Bind(c, fun v -> this.DisputeMany(v, fs))
 
-    member private this.DisputeMany(v, fs) =
+    member private this.DisputeMany(v, fs:NonEmptyList<'F>) =
+        let fs' = NonEmptyList.toList fs
         match v with
-        | Element (i, _)    -> DisputedCtx (List.empty, (Map.add [VCtx.mkElementName i] fs Map.empty), v)
-        | Field (n, _)      -> DisputedCtx (List.empty, (Map.add [n] fs Map.empty), v)
-        | Global _          -> DisputedCtx (fs, Map.empty, v)
+        | Element (i, _)    -> DisputedCtx (List.empty, (Map.add [VCtx.mkElementName i] fs' Map.empty), v)
+        | Field (n, _)      -> DisputedCtx (List.empty, (Map.add [n] fs' Map.empty), v)
+        | Global _          -> DisputedCtx (fs', Map.empty, v)
 
     /// Performs a validation using a given function and handles the result.
     /// If the result is `Some f`, a validation failure is added to the result and validation continues.
@@ -305,8 +318,8 @@ type VCtxBuilder() =
     member this.DisputeWithMany (c:VCtx<'F, ValueCtx<'A>>, fn:'A -> 'F list): VCtx<'F, ValueCtx<'A>> =
         this.Bind(c, fun v ->
             match fn (ValueCtx.getValue v) with
-            | []    -> this.Return(v)
-            | fs    -> this.DisputeMany(v, fs)
+            | []        -> this.Return(v)
+            | h :: t    -> this.DisputeMany(v, NonEmptyList.ofList h t)
         )
 
     /// Performs a validation on each member of a list using a given function and handles the result.

@@ -114,6 +114,7 @@ let flattenProofs ps =
     let ps' = ps |> List.map (Proof.map (fun a -> [a]))
     (Valid [], ps') ||> List.fold (Proof.combine (@))
 
+/// Raises an `InvalidProofException` if the the given proof is `Invalid`.
 let raiseIfInvalid msg p =
     match p with
     | Invalid (gfs,lfs) -> raise (InvalidProofException(msg, gfs, lfs))

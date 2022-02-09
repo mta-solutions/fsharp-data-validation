@@ -5,6 +5,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="NonEmptyList.fs" />
     <Compile Include="Types.fs" />
     <Compile Include="ValueCtx.fs" />
     <Compile Include="Utilities.fs" />
