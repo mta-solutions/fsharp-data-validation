@@ -1,6 +1,6 @@
 ﻿# FSharp.Data.Validation <!-- omit in toc -->
 
-*A functional approach to data validation.*
+*A functional, transformation-oriented approach to data validation.*
 
 ## Table of Contents <!-- omit in toc -->
 
@@ -1504,6 +1504,7 @@ This function accepts a `Proof<'F, 'A> list` and transforms it to a `Proof<'F, '
 This function accepts a `Proof<'F, 'A>`.
 If the value is `Valid`, it is transformed to `'A`.
 Otherwise, an `InvalidProofException` is raised with the given message. 
+This is useful when we are receiving data that you know to be valid, such as from a database, and know that validation will succeed.
 
 ## Data-Validation Library for Haskell
 
