@@ -1117,8 +1117,8 @@ validation {
 
 The `refuteWithMany` operation takes a function with the signature `'A -> Result<'B, NonEmptyList<'F>>` where `'A` is the value being validated.
 The function either transforms the value into a different type, or gives back an error.
-If the result is `Error (NonEmptyList<'F>`, the failures are added to the result and validation ends.
-If the result is `Ok 'B`, validation continues with the new type.
+If the result is `Error fs`, the failures are added to the result and validation ends.
+If the result is `Ok b`, validation continues with the new type.
 
 ```fsharp
 validation {
@@ -1181,7 +1181,7 @@ validation {
 ### `dispute*` Operations
 
 It is always good to collect as many validation failures as possible before ending validation.
-The easiest way to do this is with the `dispute*`  operations.
+The easiest way to do this is with the `dispute*` operations.
 
 #### `dispute`
 
@@ -1316,7 +1316,7 @@ If any of the elements fail validation, the entire list fails.
 validation {
     withValue ["my string"; ""]
     ...
-    disputeAnyWith (fun s ->
+    disputeAnyWithMany (fun s ->
         if s = ""
         then [Empty]
         else []
