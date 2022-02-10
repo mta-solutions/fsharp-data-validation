@@ -1,6 +1,6 @@
 ﻿# FSharp.Data.Validation <!-- omit in toc -->
 
-*A functional approach to data validation.*
+*A functional, transformation-oriented approach to data validation.*
 
 ## Table of Contents <!-- omit in toc -->
 
@@ -26,33 +26,71 @@
     - [`refute`](#refute)
     - [`refuteMany`](#refutemany)
     - [`refuteWith`](#refutewith)
-    - [`refuteProof`](#refuteproof)
+    - [`refuteWithMany`](#refutewithmany)
+    - [`refuteWithProof`](#refutewithproof)
+    - [`refuteEachWith`](#refuteeachwith)
+    - [`refuteEachWithProof`](#refuteeachwithproof)
+  - [`dispute*` Operations](#dispute-operations)
+    - [`dispute`](#dispute)
+    - [`disputeMany`](#disputemany)
+    - [`disputeWith`](#disputewith)
+    - [`disputeWithMany`](#disputewithmany)
+    - [`disputeWithFact`](#disputewithfact)
+    - [`disputeAnyWith`](#disputeanywith)
+    - [`disputeAllWith`](#disputeallwith)
+    - [`disputeAnyWithMany`](#disputeanywithmany)
+    - [`disputeAllWithMany`](#disputeallwithmany)
+    - [`disputeAnyWithFact`](#disputeanywithfact)
+    - [`disputeAllWithFact`](#disputeallwithfact)
+    - [`validateEach`](#validateeach)
 - [Validation Helpers](#validation-helpers)
+  - [The `isRequired` Helper](#the-isrequired-helper)
+  - [The `isRequiredWhen` Helper](#the-isrequiredwhen-helper)
+  - [The `isRequiredUnless` Helper](#the-isrequiredunless-helper)
+  - [The `isOk` Helper](#the-isok-helper)
+  - [The `isError` Helper](#the-iserror-helper)
+  - [The `isNull` Helper](#the-isnull-helper)
+  - [The `isNotNull` Helper](#the-isnotnull-helper)
+  - [The `minLength` Helper](#the-minlength-helper)
+  - [The `maxLength` Helper](#the-maxlength-helper)
+  - [The `isLength` Helper](#the-islength-helper)
+  - [The `hasElem` Helper](#the-haselem-helper)
+  - [The `doesNotHaveElem` Helper](#the-doesnothaveelem-helper)
+  - [The `isEqual` Helper](#the-isequal-helper)
+  - [The `isNotEqual` Helper](#the-isnotequal-helper)
+  - [The `isLessThan` Helper](#the-islessthan-helper)
+  - [The `isGreaterThan` Helper](#the-isgreaterthan-helper)
+  - [The `isLessThanOrEqual` Helper](#the-islessthanorequal-helper)
+  - [The `isGreaterThanOrEqual` Helper](#the-isgreaterthanorequal-helper)
+  - [The `isValid` Helper](#the-isvalid-helper)
+  - [The `isInvalid` Helper](#the-isinvalid-helper)
+  - [The `flattenProofs` Helper](#the-flattenproofs-helper)
+  - [The `raiseIfInvalid` Helper](#the-raiseifinvalid-helper)
 - [Data-Validation Library for Haskell](#data-validation-library-for-haskell)
 
 ## Getting Started
 
-*The code for these examples can be found [here](alasconnect/fsharp-data-validation/tree/main/samples/GettingStarted).*
+*The code for these examples can be found [here](samples/GettingStarted/).*
 
 This library is intended to accomplish 2 goals.
 First, it should be impossible for your code to consume unvalidated data.
 We accomplish this by transforming types through validation.
 Second, it should be easy to build validations.
-This library provides several types, functions, and other tools to build these validations in a consistent manor.
+This library provides several types, functions, and other tools to build these validations in a consistent manner.
 
 A core concept of functional programming is that it should be impossible to represent invalid states in your application.
 This can reduce bugs and unexpected behavior in your program but it does require a proper implementation.
 One aspect of this is how the application's types are implemented.
-Properly implemented types should not allow invalid states.
+Properly implemented types should not allow invalid states to exist.
 Any attempt to create an invalid state should result in a compile time error.
 
-Validation is a clear case that can benefit from such a concept.
+The validation problem is one that can clearly benefit from such a concept.
 One of the most significant core concepts of this library is that validation should transform a type once it has been validated.
 That way it is impossible to pass invalid data into a function that is not expecting it.
 
 This is easiest to explain with an example.
 Let's write some code that takes an email address and sends an email.
-We won't actually implement the function, we are more concerned with email address itself.
+We won't actually implement the function, we are more concerned with email address parameter.
 
 ```fsharp
 module Example
@@ -111,9 +149,9 @@ The result of a validation function needs to meet several requirements.
  1. For complex types, it should also express what fields failed
 
 The first requirement is met by the `Result<'T, 'E>` type.
-Meeting the other requirements would require another type to wrap `'T`.
+Meeting the other requirements would require another type to wrap `'T` so we can accumulate failures without losing the value.
 We don't want to specify `Result<SomeWrapper<'T>, 'E>` every time.
-Let's come up with something easier to sue that's more idiomatic.
+Let's come up with something easier to use that's more idiomatic.
 
 ```fsharp
 type Proof<'F, 'T> = 
@@ -150,7 +188,7 @@ Validation issues are expected and our code should be able to handle them smooth
 Therefore, validation issues are not errors.
 But how do we represent failures?
 
-With types of corse!
+With types of course!
 
 ```fsharp
 module Example.Types
@@ -175,9 +213,9 @@ Especially because catch all `match` expressions can lead to code that is not ty
 
 Imagine adding a new case that you want to handle.
 If you don't have a catch all pattern, the compiler will tell you what parts of the program need to be updated.
-If you do have catch all patterns, you have to search for them by hand (yuk!).
+If you have catch all patterns, you have to search for every match expression by hand (yuk!).
 
-Okay, so how do we actually validate our string?
+Okay, so how do we actually validate our email address string?
 
 ### The Validation Computation Expression
 
@@ -208,9 +246,9 @@ This type holds the value of the type being validated and all of the validation 
 
 We can't use the `Proof` type inside the expression because it only has two states, `Valid` and `Invalid`.
 `VCtx` has an additional state that lets us track the value and the failures at the same time.
-This is necessary to allow the computation expression to handle validations that are performed after other validations fail.
+This is needed so the computation expression can handle validations that are performed after other validations have already failed.
 For instance, if a password fails validation because it does not have a number character, we can still check to see if it meets the length requirement.
-In order to do that, we need to track the password's value and the failed validation.
+In order to do that, we need to track the password's value and the failed validations.
 
 Let's move on to the next part of our validation example.
 We need to tell the computation expression what we are validating.
@@ -243,7 +281,7 @@ This type holds the value that is being validated and, in the case of field vali
 You should never have to work with the `ValueCtx` type directly.
 
 When validating a value, we use the `withValue` operation by passing in the value to validate.
-For fields, we use the `withField` operation and pass in the fields `Name` and value.
+For fields, we use the `withField` operation and pass in the field's `Name` and value.
 The `Name` type can be constructed by passing a string to the `mkName` function.
 
 ```fsharp
@@ -283,7 +321,7 @@ validation {
 
 We will see `withField` later when we discuss validating complex types.
 For now, we will just use `withValue`.
-Now, how do we unwrap a value from the `ValueCtx` when we are done  validating it?
+Now, how do we unwrap a value from the `ValueCtx` when we are done validating it?
 
 #### Don't Forget `qed` <!-- omit in toc -->
 
@@ -319,8 +357,8 @@ module Example.Types
             refuteWith (fun s ->
                 let ss = s.Split([| '@' |])
                 match ss.Length with
-                | 0 -> Error MissingAtSymbol
-                | 1 -> Ok ss
+                | 1 -> Error MissingAtSymbol
+                | 2 -> Ok ss
                 | _ -> Error MultipleAtSymbols
             )
             disputeWithFact MissingUsername (fun ss -> isNotNull ss[0])
@@ -337,7 +375,7 @@ There are 2 key differences between the `dispute*` operations and the `refute*` 
 1. Refuting a value lets you transform it, disputing does not
 
 Imagine you are validating a password string with the type `string option`.
-The password is required, must be at least 8 characters long, and contain both letters and numbers.
+The password field has specific requirements: it is required, must be at least 8 characters long, and contain both letters and numbers.
 That sounds like a string that needs some validation!
 
 If the string has the value `Some "mypass"`, we would expect it to pass some checks but not others.
@@ -369,8 +407,7 @@ This is because `dispute*` operations cannot transform values.
 So far, we have only discussed if our password `string option` has a value.
 What if the value is `None`?
 Can we do any validation after that?
-Why not?
-Well, because it's the wrong type.
+No, because it's the wrong type.
 If we want to continue validation, we need to transform our `string option` into a `string` and we can't do that if we don't have a value.
 
 That's why we have the `refute*` operations.
@@ -396,8 +433,8 @@ If the check passes, the value returned is used for further validation.
 If the check fails, the failure is added to the result and validation ends.
 
 `disputeWithFact` takes a value of the failure type and a check function that returns a `bool`.
-If the check returns `false` the passed in failure is added to the result.
-In either case, validation continues.
+If the check returns `false` the passed in failure is added to the result and validation continues.
+Otherwise, validation continues without adding any failures to the result.
 
 Here is the code above with some additional clarification.
 
@@ -485,17 +522,18 @@ We need 2 models here because type safe validation requires type transformation.
 We accept unvalidated data and transform it to the validated type by performing the validation.
 The unvalidated type we call a "view model" while the validated type is a "model".
 
-Like our primitive types, we marked the constructor for the validated type is private.
+Like our primitive types, we marked the constructor for the validated type as private.
 With F# records, this means that the fields are not visible to any module outside of the declaring module.
-So, we need to define public accessors so the data can be read.
+Therefore, we need to define public accessors so the data can be read.
 
 Also notice that we use optional values for every field in the view model.
 This is because we want to accept the data in its simplest state, the one that makes the least assumptions.
-If we just used a `string`, we would be assuming that a value exists at all.
+If we just used a `string`, we would be assuming that a value must exist.
 
 Now that we have our types, let's define a smart constructor for the model.
 This smart constructor will accept the view model as a parameter, validate it, and return the model type.
 For complex types, we typically define the smart constructor as a function in a module named after the view model.
+This is just for consistency with the primitive types.
 Then we take the view model as a parameter.
 
 ```fsharp
@@ -602,7 +640,7 @@ module Example.Types
                 // validate the name field
             }
             and! username = validation {
-                printf "%s" name // this will fail because the `name` variable is not accessible yet
+                printf "%s" name // this will fail to compile because the `name` variable is not accessible yet
                 // perform additional validation
             }
 ...
@@ -733,7 +771,7 @@ type NewUserFailure =
 ```
 
 That's it.
-`refuteWith` uses the `isRequired` validation helper to transform a type from `'T option` to `'T` or if fails validation.
+`refuteWith` uses the `isRequired` validation helper to transform a type from `'T option` to `'T` or it fails validation.
 Then we use the smart constructor of our primitive types and forward the result to `Proof.mapInvalid`.
 The function takes the errors from the `Invalid` constructor of the `Proof` type and maps them to a new type.
 In this case, we just wrap the failures in the `NewUserFailure` type.
@@ -745,7 +783,7 @@ We will need to use the `optional` operator.
 
 ### The `optional` Operator
 
-The `optional` operator works of values of type `'A option`.
+The `optional` operator works on values of type `'A option`.
 It takes a function with the signature `'A -> VCtx<'F, <ValueCtx<'B'>>>`.
 In other words, it unwraps the `'A option`.
 If the value is `Some`, the operator unwraps the value and passes it to a validation function.
@@ -820,7 +858,7 @@ module Example.Types
 
 We need to include this in the `let!` chain but we can ignore the result.
 Our complex type is validated.
-However, for a complex types, ours is kind of simple.
+However, as far as complex types go, ours is fairly simple
 Let's try validating a type nested inside another type.
 
 ### Validating Nested Types
@@ -896,7 +934,7 @@ Because our endpoint will be taking in JSON, we have to build the `ContactVM` in
 We have an enum to represent the contact methods and a simple string field to represent the address/phone number.
 We won't go into detail on the validation method here, but the implementation is included.
 There is also a `PhoneNumber` primitive type but we're not going to cover that either.
-Now we just need to update our `NewUser` types include the new field.
+Now we just need to update our `NewUser` types to include the new field.
 
 ```fsharp
 // The validated new user type (the model)
@@ -1006,20 +1044,36 @@ Any errors are added to the list of field level failures with the index of the e
 
 ### Serializing The Proof Type
 
+The `Proof` type has a `JsonConverter` converter written for it using `System.Text.Json`.
+It will serialize all global failures in an array under the `failures` property.
+All field failures are serialized in a hash map under the `fields` property.
+The names of the keys in the hash map are created using the names of the validated field using the `withField` operator.
+Each failure is serialized using the `ToString` method.
+Here is an example of what it might look like.
 
+```json
+{
+    "failures": ["Name matches username."],
+    "fields": {
+        "username": ["Username cannot be empty."],
+        "preferredContact.contactDetails": ["The phone number is invalid."],
+        "additionalContacts.[0].contactDetails": ["The email address is invalid."]
+    }
+}
+```
 
 ## Validation Operations
 
 ### `refute*` Operations
 
 We already mentioned that type safe validation should transform the types as they are validated.
-The easiest way to do this is with the `refute`, `refuteMany`, `refuteWith` and `refuteWithProof` operations.
+The easiest way to do this is with the `refute*` operations.
 
 #### `refute`
 
-The simplest operations is `refute`.
+The simplest operation is `refute`.
 It accepts a validation failure and immediately ends the validation process.
-This means that any additional validation operations that come after `refute` are not processed.
+This means that any additional validation operations that come after `refute` may not be processed.
 
 ```fsharp
 validation {
@@ -1031,19 +1085,19 @@ validation {
 
 #### `refuteMany`
 
-The `refuteMany` operation is similar to the `refute` operation but it accepts multiple failures.
+The `refuteMany` operation is similar to the `refute` operation but it accepts multiple failures as a `NonEmptyList`.
 
 ```fsharp
 validation {
     ...
-    refute [MyValidationFailure, MyOtherValidationFailure]
+    refuteMany (FirstFailure >- AnotherFailure >- MyOtherValidationFailure >< MyValidationFailure)
     ...
 }
 ```
 
 #### `refuteWith`
 
-The `refuteWith` operation takes a function with the signature `'A -> Result<'F, 'B>` where `'A` is the value being validated.
+The `refuteWith` operation takes a function with the signature `'A -> Result<'B, 'F>` where `'A` is the value being validated.
 The function either transforms the value into a different type, or gives back an error.
 If the result is `Error 'F`, the failure is added to the result and validation ends.
 If the result is `Ok 'B`, validation continues with the new type.
@@ -1059,27 +1113,398 @@ validation {
 }
 ```
 
-NOTE: the `isRequired` function comes from this library and is explained in the [Validation Helpers](#Validation-Helpers) section.
+#### `refuteWithMany`
 
-#### `refuteProof`
+The `refuteWithMany` operation takes a function with the signature `'A -> Result<'B, NonEmptyList<'F>>` where `'A` is the value being validated.
+The function either transforms the value into a different type, or gives back an error.
+If the result is `Error fs`, the failures are added to the result and validation ends.
+If the result is `Ok b`, validation continues with the new type.
 
-The `refuteProof` operation takes a function with the signature `'A -> Proof<'F, 'B>` where `'A` is the value being validated.
-This function is useful when types validations are already defined elsewhere.
+```fsharp
+validation {
+    withValue "my string"
+    ...
+    refuteWithMany (fun s -> 
+        if s = "bad string" 
+        then Error (NonEmptyList.singleton BadString)
+        else Ok (GoodString s)
+    )
+    ...
+}
+```
+
+#### `refuteWithProof`
+
+The `refuteWithProof` operation takes a function with the signature `'A -> Proof<'F, 'B>` where `'A` is the value being validated.
+This function is useful when a type's validations are already defined elsewhere.
 If the result is `Invalid`, the failures are added to the result and validation ends.
 If the result is `Valid 'B`, validation continues with the new type.
+
+```fsharp
+validation {
+    withValue (Some "validemail@example.net")
+    ...
+    // value is of type `string option` here
+    refuteWithProof mkEmailAddress
+    // value is of type `EmailAddress` here
+    ...
+}
+```
+
+#### `refuteEachWith`
+
+Similar to `refuteWith` but used for validating list like types.
+
+```fsharp
+validation {
+    withValue [Some "my string"; None]
+    ...
+    refuteEachWith (isRequired RequiredField)
+    ...
+}
+```
+
+#### `refuteEachWithProof`
+
+
+Similar to `refuteWithProof` but used for validating list like types.
+
+```fsharp
+validation {
+    withValue ["my string"; "validemail@example.net"]
+    ...
+    refuteEachWithProof mkEmailAddress
+    ...
+}
+```
+
+### `dispute*` Operations
+
+It is always good to collect as many validation failures as possible before ending validation.
+The easiest way to do this is with the `dispute*` operations.
+
+#### `dispute`
+
+The simplest operation is `dispute`.
+It accepts a validation failure and adds it to the result before executing the next validation.
+
+```fsharp
+validation {
+    ...
+    dispute MyValidationFailure
+    ...
+}
+```
+
+#### `disputeMany`
+
+The `disputeMany` operation is similar to the `dispute` operation but it accepts multiple failures.
+
+```fsharp
+validation {
+    ...
+    disputeMany (MyValidationFailure >< MyOtherValidationFailure)
+    ...
+}
+```
+
+#### `disputeWith`
+
+The `disputeWith` operation takes a function with the signature `'A -> 'F option` where `'A` is the value being validated.
+The function either returns `None` or it returns some validation failure.
+If the result is `Some f`, the failure is added to the result before the next validation is executed.
 
 ```fsharp
 validation {
     withValue (Some "my string")
     ...
     // value is of type `string option` here
-    refuteWithProof mkEmailAddress
+    disputeWith (fun a -> 
+        if a = "my invalid string" 
+        then Some InvalidString 
+        else None
+    )
     // value is of type `string` here
     ...
 }
 ```
 
+#### `disputeWithMany`
+
+The `disputeWithMany` operation takes a function with the signature `'A -> 'F list` where `'A` is the value being validated.
+The function returns a list of failures.
+If the result has one or more elements, the failures are added to the result and validation continues.
+Otherwise, validation continues without adding any failures to the result.
+
+```fsharp
+validation {
+    withValue "my string"
+    ...
+    disputeWithMany (fun s -> 
+        if s = "bad string" 
+        then [BadString]
+        else []
+    )
+    ...
+}
+```
+
+#### `disputeWithFact`
+
+The `disputeWithFact` operation takes a failure value and a function with the signature `'A -> bool` where `'A` is the value being validated.
+If the result of the function is `false`, the failure value is added to the result before the next validation is executed.
+Otherwise, the validation proceeds normally.
+
+```fsharp
+validation {
+    withValue (Some "validemail@example.net")
+    ...
+    // value is of type `string option` here
+    disputeWithFact Empty isNotNull
+    // value is of type `EmailAddress` here
+    ...
+}
+```
+
+NOTE: the `isNotNull` function comes from this library and is explained in the [Validation Helpers](#Validation-Helpers) section.
+
+#### `disputeAnyWith`
+
+Similar to `disputeWith` but used for validating list like types.
+If any of the elements fail validation, the entire list fails.
+
+```fsharp
+validation {
+    withValue ["my string"; ""]
+    ...
+    disputeAnyWith (fun s ->
+        if s = ""
+        then Some Empty
+        else None
+    ...
+}
+```
+
+There is an overload to the operator that takes a function with the signature `int -> 'A -> 'F option` where the first parameter is the index of the element.
+
+#### `disputeAllWith`
+
+Similar to `disputeWith` but used for validating list like types.
+If every element fails validation, the entire list fails.
+Otherwise, no failures are added to the result.
+
+```fsharp
+validation {
+    withValue ["my string"; ""]
+    ...
+    disputeAllWith (fun s ->
+        if s = ""
+        then Some Empty
+        else None
+    ...
+}
+```
+
+There is an overload to the operator that takes a function with the signature `int -> 'A -> 'F option` where the first parameter is the index of the element.
+
+#### `disputeAnyWithMany`
+
+Similar to `disputeWithMany` but used for validating list like types.
+If any of the elements fail validation, the entire list fails.
+
+```fsharp
+validation {
+    withValue ["my string"; ""]
+    ...
+    disputeAnyWithMany (fun s ->
+        if s = ""
+        then [Empty]
+        else []
+    ...
+}
+```
+
+There is an overload to the operator that takes a function with the signature `int -> 'A -> 'F list` where the first parameter is the index of the element.
+
+#### `disputeAllWithMany`
+
+Similar to `disputeWithMany` but used for validating list like types.
+If every element fails validation, the entire list fails.
+Otherwise, no failures are added to the result.
+
+```fsharp
+validation {
+    withValue ["my string"; ""]
+    ...
+    disputeAllWith (fun s ->
+        if s = ""
+        then [RequiredField]
+        else []
+    ...
+}
+```
+
+There is an overload to the operator that takes a function with the signature `int -> 'A -> 'F list` where the first parameter is the index of the element.
+
+#### `disputeAnyWithFact`
+
+Similar to `disputeWithFact` but used for validating list like types.
+If any of the elements fail validation, the entire list fails.
+
+```fsharp
+validation {
+    withValue ["my string"; ""]
+    ...
+    disputeAnyWithFact Empty isNotNull
+    ...
+}
+```
+
+There is an overload to the operator that takes a function with the signature `int -> 'A -> bool` where the first parameter is the index of the element.
+
+#### `disputeAllWithFact`
+
+Similar to `disputeWithFact` but used for validating list like types.
+If every element fails validation, the entire list fails.
+Otherwise, no failures are added to the result.
+
+```fsharp
+validation {
+    withValue ["my string"; ""]
+    ...
+    disputeAllWithFact Empty isNotNull
+    ...
+}
+```
+
+There is an overload to the operator that takes a function with the signature `int -> 'A -> 'F list` where the first parameter is the index of the element.
+
+#### `validateEach`
+
+This function accepts a function with a signature of `'A -> VCtx<'F, 'B>` that validates each element.
+The result is created from the `validation` computation expression.
+
+```fsharp
+validation {
+    withValue [Some "my string"; None]
+    ...
+    validateEach (fun a -> validation { withValue a; ...; qed; })
+    ...
+}
+```
+
 ## Validation Helpers
+
+### The `isRequired` Helper
+
+This function is used with the `refute*` family of validation operations.
+It transforms a value from type `'T option` to `'T` or adds the given validation failure to the result.
+
+### The `isRequiredWhen` Helper
+
+This function is used with the `dispute*` family of validation operations.
+The `bool` parameters decides if the required check should execute.
+If the `bool` parameter is `true`, the helper checks that an `'T option` type value is `Some 'T` or adds the given failure to the result.
+
+### The `isRequiredUnless` Helper
+
+This function is the same as `isRequiredWhen` except the `bool` value must be `false` for the check to occur.
+
+### The `isOk` Helper
+
+This function is used with the `dispute*` family of validation operations.
+It checks that a value of type `Result<'A, 'F>` is an `Ok 'A`.
+
+### The `isError` Helper
+
+This function is used with the `dispute*` family of validation operations.
+It checks that a value of type `Result<'A, 'F>` is an `Error 'F`.
+
+### The `isNull` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a list like value is empty.
+
+### The `isNotNull` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a list like value is not empty.
+
+### The `minLength` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a list like value has at least the given number of elements.
+
+### The `maxLength` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a list like value has no more than the given number of elements.
+
+### The `isLength` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a list like value has exactly the given number of elements.
+
+### The `hasElem` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a list like value has an element equal to another value.
+
+### The `doesNotHaveElem` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a list like value does not have an element equal to another value.
+
+### The `isEqual` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a value is equal to another value using `(=)`.
+
+### The `isNotEqual` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a value is not equal to another value using `(=)`.
+
+### The `isLessThan` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a value is less than another value.
+
+### The `isGreaterThan` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a value is greater than another value.
+
+### The `isLessThanOrEqual` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a value is less or equal to than another value.
+
+### The `isGreaterThanOrEqual` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a value is greater than or equal to another value.
+
+### The `isValid` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a `Proof<'F, 'A>` is `Valid`.
+
+### The `isInvalid` Helper
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a `Proof<'F, 'A>` is `Invalid`.
+
+### The `flattenProofs` Helper
+
+This function accepts a `Proof<'F, 'A> list` and transforms it to a `Proof<'F, 'A list>`.
+
+### The `raiseIfInvalid` Helper
+
+This function accepts a `Proof<'F, 'A>`.
+If the value is `Valid`, it is transformed to `'A`.
+Otherwise, an `InvalidProofException` is raised with the given message. 
+This is useful when we are receiving data that you know to be valid, such as from a database, and know that validation will succeed.
 
 ## Data-Validation Library for Haskell
 
