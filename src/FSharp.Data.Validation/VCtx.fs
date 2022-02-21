@@ -279,7 +279,7 @@ type VCtxBuilder() =
     /// Performs a validation on each member of a list using a given function and handles the result.
     /// If the result of any element is `Error f`, a validation failure is added to the result and validation ends.
     /// If the result of all elements are `Ok b`, validation continues with the new value.
-    [<CustomOperation("refuteEachWith", MaintainsVariableSpace=true)>]
+    [<CustomOperation("refuteEachWithProof", MaintainsVariableSpace=true)>]
     member this.RefuteEachWithProof(c:VCtx<'F, ValueCtx<#seq<'A>>>, fn:'A -> Proof<'F, 'B>): VCtx<'F, ValueCtx<seq<'B>>> =
         this.RefuteEachWithProof(c, fun _ a -> fn a)
 
@@ -312,7 +312,7 @@ type VCtxBuilder() =
         )
 
     /// Performs a validation using a given function and handles the result.
-    /// If the result has one ore more elements, the validation failures are added to the result and validation continues.
+    /// If the result has one or more elements, the validation failures are added to the result and validation continues.
     /// Otherwise, validation continues normally.
     [<CustomOperation("disputeWithMany", MaintainsVariableSpace=true)>]
     member this.DisputeWithMany (c:VCtx<'F, ValueCtx<'A>>, fn:'A -> 'F list): VCtx<'F, ValueCtx<'A>> =

@@ -1,4 +1,4 @@
-﻿module FSharp.Data.Validation.Tests.VCtx
+module FSharp.Data.Validation.Tests.VCtx
 
 open Xunit
 open FsCheck
@@ -366,3 +366,293 @@ let ``VCtxBuilder.Optional: Optional of a DisputedCtx with Some refuted returns 
     let input = DisputedCtx ([gf1], Map.ofList [([field1], [lf1])], Field (field2, Some 1))
     let expected = RefutedCtx ([gf1], Map.ofList [([field1], [lf1]); ([field2], [-5])])
     Assert.Equal(expected, VCtxBuilder().Optional(input, mk5r))
+
+[<Property>]
+let ``VCtxBuilder.DisputeWith: When validation fails, the valid context becomes a disputed context`` (NegativeInt i) =
+    let a = Global i
+    let ctx = ValidCtx a
+    let failure = "failure"
+    let func x = if x > 0 then None else Some failure
+    let result = VCtxBuilder().DisputeWith(ctx, func)
+    let expected = DisputedCtx([failure], Map.ofList [], a)
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.DisputeWith: When validation fails, the failure is added to the disputed context`` (NegativeInt i) =
+    let a = Global i
+    let failure1 = "failure1"
+    let ctx = DisputedCtx([failure1], Map.ofList [], a)
+    let failure2 = "failure2"
+    let func x = if x > 0 then None else Some failure2
+    let result = VCtxBuilder().DisputeWith(ctx, func)
+    let expected = DisputedCtx([failure1; failure2], Map.ofList [], a)
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.DisputeWith: When validation succeeds, the valid context remains the same`` (PositiveInt i) =
+    let a = Global i
+    let ctx = ValidCtx a
+    let failure = "failure"
+    let func x = if x > 0 then None else Some failure
+    let result = VCtxBuilder().DisputeWith(ctx, func)
+    let expected = ctx
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.DisputeWith: When validation succeeds, the disputed context remains the same`` (PositiveInt i) =
+    let a = Global i
+    let failure1 = "failure1"
+    let ctx = DisputedCtx([failure1], Map.ofList [], a)
+    let failure2 = "failure2"
+    let func x = if x > 0 then None else Some failure2
+    let result = VCtxBuilder().DisputeWith(ctx, func)
+    let expected = ctx
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.DisputeWithFact: When validation fails, the valid context becomes a disputed context`` (NegativeInt i) =
+    let a = Global i
+    let ctx = ValidCtx a
+    let func x = x > 0
+    let failure = "failure"
+    let result = VCtxBuilder().DisputeWithFact(ctx, failure, func)
+    let expected = DisputedCtx([failure], Map.ofList [], a)
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.DisputeWithFact: When validation fails, the failure is added to the disputed context`` (NegativeInt i) =
+    let a = Global i
+    let failure1 = "failure1"
+    let ctx = DisputedCtx([failure1], Map.ofList [], a)
+    let func x = x > 0
+    let failure2 = "failure2"
+    let result = VCtxBuilder().DisputeWithFact(ctx, failure2, func)
+    let expected = DisputedCtx([failure1; failure2], Map.ofList [], a)
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.DisputeWithFact: When validation succeeds, the valid context remains the same`` (PositiveInt i) =
+    let a = Global i
+    let ctx = ValidCtx a
+    let func x = x > 0
+    let failure = "failure"
+    let result = VCtxBuilder().DisputeWithFact(ctx, failure, func)
+    let expected = ctx
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.DisputeWithFact: When validation succeeds, the disputed context remains the same`` (PositiveInt i) =
+    let a = Global i
+    let failure1 = "failure1"
+    let ctx = DisputedCtx([failure1], Map.ofList [], a)
+    let func x = x > 0
+    let failure2 = "failure2"
+    let result = VCtxBuilder().DisputeWithFact(ctx, failure2, func)
+    let expected = ctx
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWith: When validation fails, the valid context becomes a refuted context`` (NegativeInt i) =
+    let a = Global i
+    let ctx = ValidCtx a
+    let success = "success"
+    let failure = "failure"
+    let func x = if x > 0 then Ok success else Error failure
+    let result = VCtxBuilder().RefuteWith(ctx, func)
+    let expected = RefutedCtx([failure], Map.ofList [])
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWith: When validation fails, the disputed context becomes a refuted context`` (NegativeInt i) =
+    let a = Global i
+    let failure1 = "failure1"
+    let ctx = DisputedCtx([failure1], Map.ofList [], a)
+    let success = "success"
+    let failure2 = "failure2"
+    let func x = if x > 0 then Ok success else Error failure2
+    let result = VCtxBuilder().RefuteWith(ctx, func)
+    let expected = RefutedCtx([failure1; failure2], Map.ofList [])
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWith: When validation succeeds, the valid context remains the same`` (PositiveInt i) =
+    let a = Global i
+    let ctx = ValidCtx a
+    let success = "success"
+    let failure = "failure"
+    let func x = if x > 0 then Ok success else Error failure
+    let result = VCtxBuilder().RefuteWith(ctx, func)
+    let b = Global success
+    let expected = ValidCtx b
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWith: When validation succeeds, the disputed context remains the same`` (PositiveInt i) =
+    let a = Global i
+    let failure1 = "failure1"
+    let ctx = DisputedCtx([failure1], Map.ofList [], a)
+    let success = "success"
+    let failure2 = "failure2"
+    let func x = if x > 0 then Ok success else Error failure2
+    let result = VCtxBuilder().RefuteWith(ctx, func)
+    let b = Global success
+    let expected = DisputedCtx([failure1], Map.ofList [], b)
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When element validation fails, the valid context becomes a refuted context`` (NegativeInt i) =
+    let field1 = mkName "field1" |> Option.get
+    let a = Element(1, i)
+    let ctx = ValidCtx a
+    let success = "success"
+    let failure = "failure"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [([field1],[failure])])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let name = mkName "[1]" |> Option.get
+    let expected = RefutedCtx([], Map.ofList [([field1],[failure]); ([name],[failure])])
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When element validation fails, the disputed context becomes a refuted context`` (NegativeInt i) =
+    let field1 = mkName "field1" |> Option.get
+    let field2 = mkName "field2" |> Option.get
+    let a = Element(1, i)
+    let failure = "failure"
+    let ctx = DisputedCtx([], Map.ofList [([field1],[failure])], a)
+    let success = "success"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [([field2],[failure])])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let name = mkName "[1]" |> Option.get
+    let expected = RefutedCtx([], Map.ofList [([field1],[failure]); ([field2],[failure]); ([name],[failure])])
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When element validation succeeds, the valid context remains the same`` (PositiveInt i) =
+    let field1 = mkName "field1" |> Option.get
+    let a = Element(1, i)
+    let ctx = ValidCtx a
+    let success = "success"
+    let failure = "failure"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [([field1],[failure])])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let b = Element(1, success)
+    let expected = ValidCtx b
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When element validation succeeds, the disputed context remains the same`` (PositiveInt i) =
+    let field1 = mkName "field1" |> Option.get
+    let field2 = mkName "field2" |> Option.get
+    let a = Element(1, i)
+    let failure = "failure"
+    let ctx = DisputedCtx([], Map.ofList [([field1],[failure])], a)
+    let success = "success"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [([field2],[failure])])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let b = Element(1, success)
+    let expected = DisputedCtx([], Map.ofList [([field1],[failure])], b)
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When field validation fails, the valid context becomes a refuted context`` (NegativeInt i) =
+    let field1 = mkName "field1" |> Option.get
+    let field2 = mkName "field2" |> Option.get
+    let a = Field(field1, i)
+    let ctx = ValidCtx a
+    let success = "success"
+    let failure = "failure"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [([field2],[failure])])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let expected = RefutedCtx([], Map.ofList [([field1],[failure]); ([field2],[failure])])
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When field validation fails, the disputed context becomes a refuted context`` (NegativeInt i) =
+    let field1 = mkName "field1" |> Option.get
+    let field2 = mkName "field2" |> Option.get
+    let field3 = mkName "field3" |> Option.get
+    let a = Field(field1, i)
+    let failure = "failure"
+    let ctx = DisputedCtx([], Map.ofList [([field2],[failure])], a)
+    let success = "success"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [([field3],[failure])])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let expected = RefutedCtx([], Map.ofList [([field1],[failure]); ([field2],[failure]); ([field3],[failure])])
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When field validation succeeds, the valid context remains the same`` (PositiveInt i) =
+    let field1 = mkName "field1" |> Option.get
+    let field2 = mkName "field2" |> Option.get
+    let a = Field(field1, i)
+    let ctx = ValidCtx a
+    let success = "success"
+    let failure = "failure"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [([field2],[failure])])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let b = Field(field1, success)
+    let expected = ValidCtx b
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When field validation succeeds, the disputed context remains the same`` (PositiveInt i) =
+    let field1 = mkName "field1" |> Option.get
+    let field2 = mkName "field2" |> Option.get
+    let field3 = mkName "field3" |> Option.get
+    let a = Field(field1, i)
+    let failure = "failure"
+    let ctx = DisputedCtx([], Map.ofList [([field2],[failure])], a)
+    let success = "success"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [([field3],[failure])])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let b = Field(field1, success)
+    let expected = DisputedCtx([], Map.ofList [([field2],[failure])], b)
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When gobal validation fails, the valid context becomes a refuted context`` (NegativeInt i) =
+    let a = Global i
+    let ctx = ValidCtx a
+    let success = "success"
+    let failure = "failure"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let expected = RefutedCtx([failure], Map.ofList [])
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When global validation fails, the disputed context becomes a refuted context`` (NegativeInt i) =
+    let a = Global i
+    let failure1 = "failure1"
+    let ctx = DisputedCtx([failure1], Map.ofList [], a)
+    let success = "success"
+    let failure2 = "failure2"
+    let func x = if x > 0 then Valid success else Invalid([failure2], Map.ofList [])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let expected = RefutedCtx([failure1; failure2], Map.ofList [])
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When global validation succeeds, the valid context remains the same`` (PositiveInt i) =
+    let a = Global i
+    let ctx = ValidCtx a
+    let success = "success"
+    let failure = "failure"
+    let func x = if x > 0 then Valid success else Invalid([failure], Map.ofList [])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let b = Global success
+    let expected = ValidCtx b
+    Assert.Equal(expected, result)
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When global validation succeeds, the disputed context remains the same`` (PositiveInt i) =
+    let a = Global i
+    let failure1 = "failure1"
+    let ctx = DisputedCtx([failure1], Map.ofList [], a)
+    let success = "success"
+    let failure2 = "failure2"
+    let func x = if x > 0 then Valid success else Invalid([failure2], Map.ofList [])
+    let result = VCtxBuilder().RefuteWithProof(ctx, func)
+    let b = Global success
+    let expected = DisputedCtx([failure1], Map.ofList [], b)
+    Assert.Equal(expected, result)
