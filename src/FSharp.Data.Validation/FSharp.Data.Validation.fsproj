@@ -3,6 +3,13 @@
   <PropertyGroup>
     <TargetFramework>net6.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Description>A functional, transformation-oriented approach to data validation.</Description>
+    <Company>Ampersand</Company>
+    <Authors>Ampersand</Authors>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>$([System.IO.File]::ReadAllText("$(SolutionDir)/CHANGELOG.md"))</PackageReleaseNotes>
+    <RepositoryUrl>https://github.com/alasconnect/fsharp-data-validation</RepositoryUrl>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="NonEmptyList.fs" />
@@ -12,6 +19,14 @@
     <Compile Include="Proof.fs" />
     <Compile Include="VCtx.fs" />
     <Compile Include="Library.fs" />
+    <None Include="..\..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+    <None Include="..\..\CHANGELOG.md">
+      <Pack>false</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
     <None Include="paket.references" />
   </ItemGroup>
 
