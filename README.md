@@ -66,6 +66,9 @@
   - [The `isInvalid` Helper](#the-isinvalid-helper)
   - [The `flattenProofs` Helper](#the-flattenproofs-helper)
   - [The `raiseIfInvalid` Helper](#the-raiseifinvalid-helper)
+- [Proof Helpers](#proof-helpers)
+  - [`toResult` Helper](#toresult-helper)
+  - [`toValidationFailures` Helper](#tovalidationfailures-helper)
 - [Data-Validation Library for Haskell](#data-validation-library-for-haskell)
 
 ## Getting Started
@@ -1505,6 +1508,18 @@ This function accepts a `Proof<'F, 'A>`.
 If the value is `Valid`, it is transformed to `'A`.
 Otherwise, an `InvalidProofException` is raised with the given message. 
 This is useful when we are receiving data that you know to be valid, such as from a database, and know that validation will succeed.
+
+## Proof Helpers
+
+There are helper functions for the `Proof` type to make it easier to work with.
+
+### `toResult` Helper
+
+The `toResult` helper converts a `Proof<'F,'A>` value to a `Result<'A,ValidationFailures<'F>>`.
+
+### `toValidationFailures` Helper
+
+If you are only interested in the failures, you can use the `toValidationFailures` function to convert a `Proof<'F,'A>` to a `Option<ValidationFailures<'F>>`.
 
 ## Data-Validation Library for Haskell
 
