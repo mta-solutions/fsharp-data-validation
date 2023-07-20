@@ -69,6 +69,8 @@
 - [Proof Helpers](#proof-helpers)
   - [`toResult` Helper](#toresult-helper)
   - [`toValidationFailures` Helper](#tovalidationfailures-helper)
+- [`IValidateable` Interface](#ivalidateable-interface)
+  - [Example Usage](#example-usage)
 - [Haskell Data-Validation Library](#haskell-data-validation-library)
 
 ## Getting Started
@@ -1507,7 +1509,64 @@ The `toResult` helper converts a `Proof<'F,'A>` value to a `Result<'A,Validation
 
 ### `toValidationFailures` Helper
 
-If you are only interested in the failures, you can use the `toValidationFailures` function to convert a `Proof<'F,'A>` to a `Option<ValidationFailures<'F>>`.
+If you are only interested in the failures, you can use the `toValidationFailures` function to convert a `Proof<'F,'A>` to an `Option<ValidationFailures<'F>>`.
+
+## `IValidateable` Interface
+
+The `IValidateable` interface defines a contract for types that can be validated using the validation library. It includes an abstract `Validate` member function that performs the validation and returns a `Proof` object representing the validation result.
+
+```fsharp
+type IValidateable<'T> =
+    abstract member Validate : unit -> Proof<ValidationFailures, 'T>
+```
+
+In this interface, `'T` represents the type being validated. The `Validate` member function takes no parameters and returns a `Proof<ValidationFailures, 'T>` object that captures the validation results.
+
+To make a specific type `'T` implement the `IValidateable` interface, you would need to define the `Validate` member function for that type according to your validation logic. The `Validate` function should perform the necessary validations on an instance of type `'T` and return a `Proof<ValidationFailures, 'T>` object representing the validation result.
+
+### Example Usage
+
+Let's see an example of how to use the `IValidateable` interface with the `NewUser` type from the previous examples. We'll assume that the `NewUser` type has been defined to implement the `IValidateable` interface.
+
+```fsharp
+type NewUser =
+    { Name: string option
+      Username: string option
+      Password: string option
+      Contact: Contact option } 
+    interface IValidateable<NewUser> with
+        member this.Validate () =
+            validation {
+                let! name = validation {
+                    withField (fun () -> this.Name)
+                    optional (fun v -> validation {
+                        withValue v
+                        refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
+                    })
+                    qed
+                }
+                and! username = validation {
+                    withField (fun () -> this.Username)
+                    refuteWith (isRequired RequiredField)
+                    refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
+                }
+                and! password = validation {
+                    withField (fun () -> this.Password)
+                    refuteWith (isRequired RequiredField)
+                    refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
+                }
+                and! contact = validation {
+                    withField (fun () -> this.Contact)
+                    refuteWith (isRequired RequiredField)
+                    refuteWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
+                }
+                return { NewUser.Name = name; Username = username; Password = password; Contact = contact }
+            } |> fromVCtx
+```
+
+In this example, the `NewUser` type implements the `IValidateable<NewUser>` interface. The `Validate` member function is defined to perform the validation logic for the `NewUser` type. The validation process follows the same pattern as shown in previous examples, using the validation computation expression to validate each field and return the validated `NewUser` object.
+
+By implementing the `IValidateable` interface, the `NewUser` type provides a consistent way to perform validations and obtain the validation result using the `Validate` method.
 
 ## Haskell Data-Validation Library
 

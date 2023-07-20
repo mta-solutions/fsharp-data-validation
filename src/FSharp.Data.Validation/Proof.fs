@@ -1,11 +1,11 @@
-﻿namespace FSharp.Data.Validation
+namespace FSharp.Data.Validation
 
 open System
 open System.Text.Json
 open System.Text.Json.Serialization
 
 [<JsonConverter(typeof<ValidationFailuresConverterFactory>)>]
-type ValidationFailures<'F> = 
+type ValidationFailures<'F> =
     { Failures: 'F list
       Fields: FailureMap<'F> }
 and ValidationFailuresConverter<'F>() =
@@ -109,7 +109,7 @@ module Proof =
             match p2 with
             | Valid _               -> Invalid (gfs, lfs)
             | Invalid (gfs', lfs')  -> Invalid (gfs @ gfs', Utilities.mergeFailures lfs lfs')
-    
+
     let toValidationFailures p =
         match p with
         | Valid a           -> None
@@ -119,3 +119,6 @@ module Proof =
         match p with
         | Valid a           -> Ok a
         | Invalid (gfs,lfs) -> Error { Failures = gfs; Fields= lfs; }
+
+type IValidateable<'F> =
+    abstract member Validate: unit -> Proof<'F, unit>
