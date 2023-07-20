@@ -71,6 +71,14 @@
   - [`toValidationFailures` Helper](#tovalidationfailures-helper)
 - [`IValidateable` Interface](#ivalidateable-interface)
   - [Example Usage](#example-usage)
+  - [Using IValidateable Interface with Giraffe Model Validation](#using-ivalidateable-interface-with-giraffe-model-validation)
+    - [Step 1: Define the Validation Failures](#step-1-define-the-validation-failures)
+    - [Step 2: Define the Primitive Types](#step-2-define-the-primitive-types)
+    - [Step 3: Define the Model and Implement IValidateable](#step-3-define-the-model-and-implement-ivalidateable)
+    - [Step 4: Define the Giraffe IModelValidation](#step-4-define-the-giraffe-imodelvalidation)
+    - [Step 5: Define our Handler](#step-5-define-our-handler)
+    - [Step 6: Bind and Validate the Model in webApp](#step-6-bind-and-validate-the-model-in-webapp)
+    - [Step 7: Build and Run the Application](#step-7-build-and-run-the-application)
 - [Haskell Data-Validation Library](#haskell-data-validation-library)
 
 ## Getting Started
@@ -1567,6 +1575,175 @@ type NewUser =
 In this example, the `NewUser` type implements the `IValidateable<NewUser>` interface. The `Validate` member function is defined to perform the validation logic for the `NewUser` type. The validation process follows the same pattern as shown in previous examples, using the validation computation expression to validate each field and return the validated `NewUser` object.
 
 By implementing the `IValidateable` interface, the `NewUser` type provides a consistent way to perform validations and obtain the validation result using the `Validate` method.
+
+### Using IValidateable Interface with Giraffe Model Validation
+
+In this guide, we will explore how to use the `IValidateable` interface to validate models in a Giraffe web application.
+We will leverage the F# Validation Library and Giraffe's model validation capabilities to validate a `NewUserVM` model.
+
+#### Step 1: Define the Validation Failures
+
+First, we need to define the validation failures specific to our model.
+In this example, we have two types of validation failures for the `Username` and `Password` fields.
+We also have a global `RequiredField` validation failure.
+All of these failures are wrapped into the `NewUserFailures` type:
+
+```fsharp
+type PasswordFailures =
+    | Empty
+    | TooShort
+    | TooLong
+
+type UsernameFailures = | Empty
+
+type NewUserFailures =
+    | RequiredField
+    | InvalidUsername of UsernameFailures
+    | InvalidPassword of PasswordFailures
+```
+
+#### Step 2: Define the Primitive Types
+
+We then need to define our primitive types `Username` and `Password`:
+
+```fsharp
+type Password = private Password of string
+
+module Password =
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact PasswordFailures.Empty isNotNull
+            disputeWithFact PasswordFailures.TooShort (fun (s: string) -> s.Length >= 8)
+            disputeWithFact PasswordFailures.TooLong (fun (s: string) -> s.Length <= 20)
+            qed Password
+        }
+        |> fromVCtx
+
+    let unwrap (Password s) = s
+
+type Username = private Username of string
+
+module Username =
+    let make s =
+        validation {
+            withValue s
+            disputeWithFact UsernameFailures.Empty isNotNull
+            qed Username
+        }
+        |> fromVCtx
+
+    let unwrap (Username s) = s
+```
+
+#### Step 3: Define the Model and Implement IValidateable
+
+Next, we define our `NewUserVM` model and implement the `IValidateable<'F>` interface, writing validations for the model using this library.
+In this case, the failure type of the `IValidateable<'F>` represented by `'F` is `NewUserFailures`.
+
+```fsharp
+[<CLIMutable>]
+type NewUserVM =
+    { Name: string option
+      Username: string option
+      Password: string option }
+
+    interface IValidateable<NewUserFailures> with
+        member this.Validate() =
+            validation {
+                // Validate the Name field
+                let! n =
+                    validation {
+                        withField (fun () -> this.Name)
+                        refuteWith (isRequired RequiredField)
+                        qed
+                    }
+
+                // Validate the Username field
+                and! un =
+                    validation {
+                        withField (fun () -> this.Username)
+                        refuteWith (isRequired RequiredField)
+                        refuteWithProof (Username.make >> Proof.mapInvalid InvalidUsername)
+                        qed
+                    }
+
+                // Validate the Password field
+                and! pw =
+                    validation {
+                        withField (fun () -> this.Password)
+                        refuteWith (isRequired RequiredField)
+                        refuteWithProof (Password.make >> Proof.mapInvalid InvalidPassword)
+                        qed
+                    }
+
+                return ()
+            }
+            |> fromVCtx
+```
+
+In this implementation, we use the `validation` computation expression to define the validation logic for each field.
+For the `Username` and `Password` fields, we use the `Username.make` and `Password.make` functions respectively to perform additional validation specific to these fields.
+
+#### Step 4: Define the Giraffe IModelValidation
+
+Now, we need to implement the Giraffe `IModelValidation<'T>` interface and its `Validate` method.
+This is what will apply the validations and throw an appropriate HTTP response.
+
+```fsharp
+[<CLIMutable>]
+type NewUserVM =
+    // ... nothing new here
+
+    interface IModelValidation<NewUserVM> with
+        member this.Validate() =
+            match
+                // To access Validate() on the IValidateable<NewUserFailures> interface,
+                // we must upcast to that interface.
+                (this :> IValidateable<NewUserFailures>).Validate()
+                // We only care about the validation failures for the NewUserVM type.
+                |> Proof.toValidationFailures
+            with
+            | None -> Ok this
+            | Some e -> Error(RequestErrors.BAD_REQUEST e)
+```
+
+#### Step 5: Define our Handler
+
+For this example, we can create a very simple handler:
+
+```fsharp
+let handleCreateUser (vm: NewUserVM) =
+    fun (next: HttpFunc) (ctx: HttpContext) ->
+        task {
+            let newName = vm.Name |> Option.defaultValue ""
+            return! Successful.OK $"New user %s{newName} created!" next ctx
+        }
+```
+
+In this example, our handler just prints a message indicating the creation of the user.
+
+#### Step 6: Bind and Validate the Model in webApp
+
+Finally, we use the Giraffe functions `bindModel` and `validateModel` to bind the request body to the `NewUserVM` model and then validate it.
+
+```fsharp
+let webApp: HttpFunc -> HttpContext -> HttpFuncResult =
+    choose
+        [ POST
+          >=> route "/users"
+          >=> bindModel<NewUserVM> None (validateModel handleCreateUser) ]
+```
+
+In this implementation, `bindModel<NewUserVM>` is used to bind the request body to the `NewUserVM` model, and `validateModel` is used to validate the model using the `IValidateable<NewUserFailures>` interface.
+
+#### Step 7: Build and Run the Application
+
+The rest of the code is standard for Giraffe web applications, including setting up the host, adding services, and running the application.
+
+Now, when a request is made to the `/users` endpoint, the Giraffe web application will bind the request body to the `NewUserVM` model and then validate it using the `IValidateable<NewUserFailures>` interface. If validation fails, the appropriate errors will be returned. If validation succeeds, the user will model will be accessible in the handler.
+
+That's it! You've successfully used the `IValidateable` interface with Giraffe model validation to ensure that the `NewUserVM` model is valid before proceeding with further processing. This approach allows you to centralize validation logic and keep your web application code clean and organized.
 
 ## Haskell Data-Validation Library
 
