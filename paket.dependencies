@@ -6,6 +6,7 @@ nuget FsCheck
 nuget FsCheck.Xunit
 nuget FSharp.Core
 nuget FsUnit.xUnit
+nuget Giraffe
 nuget Microsoft.NET.Test.Sdk
 nuget xunit
 nuget xunit.runner.visualstudio
