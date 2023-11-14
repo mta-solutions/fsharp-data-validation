@@ -6,18 +6,18 @@ open System.Linq
 
 open FSharp.Data.Validation
 
-type UsernameFailures = 
+type UsernameFailures =
     | Empty
 
-type EmailAddressFailures = 
+type EmailAddressFailures =
     | InvalidFormat
 
-type PhoneNumberFailures = 
+type PhoneNumberFailures =
     | Empty
     | NumericStringOnly
     | InvalidFormat
 
-type ZipCodeFailures = 
+type ZipCodeFailures =
     | Empty
     | NumericStringOnly
     | InvalidFormat
@@ -30,7 +30,7 @@ type MyFailures =
     | InvalidZipCode of ZipCodeFailures
     | EmailAddressMatchesUsername
 
-let private isNumericString (str:string) = 
+let private isNumericString (str:string) =
     str.All(fun c -> Char.IsNumber(c))
 
 // app specific types
@@ -48,8 +48,8 @@ module Username =
 
 type EmailAddress = private EmailAddress of string
 
-module EmailAddress = 
-    let make s =
+module EmailAddress =
+    let make (s : string) =
         validation {
             withValue s
             disputeWithFact EmailAddressFailures.InvalidFormat (fun s -> Regex.IsMatch(s, "[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+"))
@@ -87,5 +87,5 @@ module ZipCode =
             disputeWithFact ZipCodeFailures.InvalidFormat (isLength 5)
             qed ZipCode
         } |> fromVCtx
-        
+
     let unwrap (ZipCode s) = s
