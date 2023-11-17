@@ -4,12 +4,8 @@
     <TargetFramework>net6.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Model validation helpers for Giraffe.</Description>
-    <Company>Matanuska Telecom Association</Company>
-    <Authors>Matanuska Telecom Association</Authors>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <RepositoryUrl>https://github.com/alasconnect/fsharp-data-validation</RepositoryUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <Version>0.0.1</Version>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Library.fs" />
@@ -21,7 +17,10 @@
       <Pack>false</Pack>
       <PackagePath>\</PackagePath>
     </None>
-    <None Include="paket.references" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+  
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="[6.0.1,)" />
+    <PackageReference Include="Giraffe" Version="[6,)" />
+  </ItemGroup>
 </Project>

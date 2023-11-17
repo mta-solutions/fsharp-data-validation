@@ -74,7 +74,7 @@ type EmailAddressFailures =
     | InvalidEmail
 
 module EmailAddress =
-    let make s =
+    let make (s : string) =
         validation {
             withValue s
             disputeWithFact InvalidEmail (fun s -> Regex.IsMatch(s, "^[a-zA-Z0-9+._-]+@[a-zA-Z-]+\\.[a-z]+$"))
@@ -95,7 +95,7 @@ type ContactPreference =
     | Email
     | Phone
 
-type UserContact = 
+type UserContact =
     { UserId : UserId
       PhoneNumber : PhoneNumber option
       EmailAddress : EmailAddress option

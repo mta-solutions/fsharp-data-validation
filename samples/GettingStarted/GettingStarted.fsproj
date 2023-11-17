@@ -1,14 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
-    <None Include="paket.references" />
     <Compile Include="Types.fs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\FSharp.Data.Validation\FSharp.Data.Validation.fsproj" />
   </ItemGroup>
-  <Import Project="..\..\.paket\Paket.Restore.targets" />
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="[6,)" />
+  </ItemGroup>
 </Project>

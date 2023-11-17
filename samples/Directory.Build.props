@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <WarningsAsErrors>FS0025</WarningsAsErrors>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+</Project>
