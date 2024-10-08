@@ -20,7 +20,7 @@
   </ItemGroup>
   
   <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="[6.0.1,)" />
+    <PackageReference Update="FSharp.Core" Version="[6.0.6,)" />
     <PackageReference Include="Giraffe" Version="[6,)" />
   </ItemGroup>
 </Project>
