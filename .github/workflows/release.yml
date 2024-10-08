@@ -37,7 +37,7 @@ jobs:
         run: dotnet pack --configuration Release /p:NuGetVersion=${VERSION} /p:PackageVersion=${VERSION} --include-symbols --output .
 
       - name: Push
-        run: dotnet nuget push FSharp.Data.Validation.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${AMPERSAND_NUGET_KEY} --symbol-source https://symbols.nuget.org/download/symbols --symbol-api-key ${AMPERSAND_NUGET_KEY} 
+        run: dotnet nuget push FSharp.Data.Validation.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${MTA_NUGET_KEY} --symbol-source https://symbols.nuget.org/download/symbols --symbol-api-key ${MTA_NUGET_KEY} 
 
         env:
-          AMPERSAND_NUGET_KEY: ${{ secrets.AMPERSAND_NUGET_KEY }}
+          MTA_NUGET_KEY: ${{ secrets.MTA_NUGET_KEY }}
