@@ -5,7 +5,7 @@ open System.Text.Json
 open System.Text.Json.Serialization
 
 [<JsonConverter(typeof<ValidationFailuresConverterFactory>)>]
-type ValidationFailures<'F> = 
+type ValidationFailures<'F> =
     { Failures: 'F list
       Fields: FailureMap<'F> }
 and ValidationFailuresConverter<'F>() =
@@ -23,7 +23,8 @@ and ValidationFailuresConverter<'F>() =
             | 0 -> str
             | 1 -> str.ToLower()
             | _ -> sprintf "%c%s" (Char.ToLowerInvariant(str[0])) (str.Substring(1))
-        override this.Read(reader: byref<Utf8JsonReader>, typ, opts) = base.Read(&reader, typ, opts)
+        override this.Read(reader: byref<Utf8JsonReader>, typ, opts) =
+            JsonSerializer.Deserialize<ValidationFailures<'F>>(&reader, opts)
         override this.Write(writer, fs, opts) =
             writer.WriteStartObject()
 
@@ -70,7 +71,8 @@ and ProofConverter<'F, 'A>() =
             | 0 -> str
             | 1 -> str.ToLower()
             | _ -> sprintf "%c%s" (Char.ToLowerInvariant(str[0])) (str.Substring(1))
-        override this.Read(reader: byref<Utf8JsonReader>, typ, opts) = base.Read(&reader, typ, opts)
+        override this.Read(reader: byref<Utf8JsonReader>, typ, opts) =
+            JsonSerializer.Deserialize<Proof<'F, 'A>>(&reader, opts)
         override this.Write(writer, proof, opts) =
             match proof with
             | Valid a           -> JsonSerializer.Serialize(writer, a, opts)
@@ -109,7 +111,7 @@ module Proof =
             match p2 with
             | Valid _               -> Invalid (gfs, lfs)
             | Invalid (gfs', lfs')  -> Invalid (gfs @ gfs', Utilities.mergeFailures lfs lfs')
-    
+
     let toValidationFailures p =
         match p with
         | Valid a           -> None
