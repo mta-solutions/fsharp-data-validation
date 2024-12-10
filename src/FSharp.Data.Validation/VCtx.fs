@@ -6,7 +6,6 @@ open System.Linq.Expressions
 open FSharpPlus.Data
 
 type VCtx<'F, 'A> =
-    internal
     | ValidCtx of 'A
     | DisputedCtx of 'F list * FailureMap<'F> * 'A
     | RefutedCtx of 'F list * FailureMap<'F>

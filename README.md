@@ -21,6 +21,7 @@
   - [Validating Nested Types](#validating-nested-types)
   - [Validating Collections](#validating-collections)
   - [Serializing The Proof Type](#serializing-the-proof-type)
+  - [Validating Async Data](#validating-async-data)
 - [Validation Operations](#validation-operations)
   - [`refute*` Operations](#refute-operations)
     - [`refute`](#refute)
@@ -1064,6 +1065,52 @@ Here is an example of what it might look like.
     }
 }
 ```
+
+### Validating Async Data
+
+What if we need to validate data that is retrieved asynchronously?
+There are three functions available in the `FSharp.Data.Validation.Async` package that can help with this:
+
+- `bindToAsync`
+- `bindAsync`
+- `bindFromAsync`
+
+The `bindToAsync` function is used to bind a value to an asynchronous computation.
+The value is passed to the computation and the result is returned.
+
+The `bindAsync` function is used to bind an asynchronous computation to a value.
+The computation is executed and the result is passed to the function.
+
+The `bindFromAsync` function is used to bind an asynchronous computation to another asynchronous computation.
+The first computation is executed and the result is passed to the second computation.
+
+Let's say we have a function that retrieves a user's data from a database.
+We want to validate the data before we use it.
+We can use the `bindToAsync` function to bind the data to a validation computation.
+
+```fsharp
+module Example
+
+open FSharp.Data.Validation
+open FSharp.Data.Validation.Async
+
+let getUserData (id:int): Async<UserData> = 
+    // get user data from database
+
+let validateUserData (data:UserData): Proof<UserDataFailure, UserData> =
+    validation {
+        withValue data
+        // validate data
+        qed
+    } |> fromVCtx
+
+let getUserDataAndValidate (id:int): Async<Proof<UserDataFailure, UserData>> =
+    getUserData id |> bindToAsync validateUserData
+```
+
+The `getUserDataAndValidate` function retrieves the user data and validates it.
+The `bindToAsync` function is used to bind the data to the validation computation.
+The result is an asynchronous computation that returns the validated data.
 
 ## Validation Operations
 

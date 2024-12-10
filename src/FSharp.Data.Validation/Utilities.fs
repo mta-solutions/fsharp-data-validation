@@ -1,4 +1,4 @@
-﻿module internal FSharp.Data.Validation.Utilities
+module FSharp.Data.Validation.Utilities
 
 // Given a sequence of options, return list of Some
 let catOptions l = Seq.choose id l
