@@ -1,5 +1,9 @@
 # Revision history for fsharp-data-validation
 
+## 2.1.0 - 12/10/2024
+
+* Add `FSharp.Data.Validation.Async` project for easier async validation.
+
 ## 2.0.0 - 10/08/2024
 
 * Update to use FSharpPlus instead of custom NonEmptyList type.
