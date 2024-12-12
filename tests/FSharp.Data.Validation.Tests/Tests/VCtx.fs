@@ -107,6 +107,84 @@ let ``bind: Bind a DisputedCtx with a RefutedCtx properly, results in RefutedCtx
     let result = VCtx.bind (fun _ -> RefutedCtx (gfs2, lfs2)) input
     Assert.Equal(RefutedCtx ([gf1; gf2], lfsResult), result)
 
+[<Property>]
+let ``mergeSources with two ValidCtx should return ValidCtx with tuple``
+    (a: int, b: int)
+    =
+    let input1 = ValidCtx a
+    let input2 = ValidCtx b
+    let expected = ValidCtx (a, b)
+    Assert.Equal(expected, VCtx.mergeSources input1 input2)
+
+[<Property>]
+let ``mergeSources: Merging one ValidCtx and one DisputedCtx results in DisputedCtx``
+    (a: int, b: int, NonWhiteSpaceString n1, lf1: int, gf1: int)
+    =
+    let field1 = mkName n1 |> Option.get
+    let gfs = [gf1]
+    let lfs = Map.ofList [([field1], [lf1])]
+    let input1 = ValidCtx a
+    let input2 = DisputedCtx (gfs, lfs, b)
+    let expected = DisputedCtx (gfs, lfs, (a, b))
+    Assert.Equal(expected, VCtx.mergeSources input1 input2)
+
+[<Property>]
+let ``mergeSources: Merging one ValidCtx and one RefutedCtx results in RefutedCtx``
+    (a: int, NonWhiteSpaceString n1, lf1: int, gf1: int)
+    =
+    let field1 = mkName n1 |> Option.get
+    let gfs = [gf1]
+    let lfs = Map.ofList [([field1], [lf1])]
+    let input1 = ValidCtx a
+    let input2 = RefutedCtx (gfs, lfs)
+    let expected = RefutedCtx (gfs, lfs)
+    Assert.Equal(expected, VCtx.mergeSources input1 input2)
+
+[<Property>]
+let ``mergeSources: Merging two DisputedCtx results in DisputedCtx``
+    (a: int, b: int, NonWhiteSpaceString n1, lf1: int, lf2: int, gf1: int, gf2: int)
+    =
+    let field1 = mkName n1 |> Option.get
+    let gfs1 = [gf1]
+    let lfs1 = Map.ofList [([field1], [lf1])]
+    let gfs2 = [gf2]
+    let lfs2 = Map.ofList [([field1], [lf2])]
+    let lfsResult = Utilities.mergeFailures lfs1 lfs2
+    let input1 = DisputedCtx (gfs1, lfs1, a)
+    let input2 = DisputedCtx (gfs2, lfs2, b)
+    let expected = DisputedCtx (gfs1 @ gfs2, lfsResult, (a, b))
+    Assert.Equal(expected, VCtx.mergeSources input1 input2)
+
+[<Property>]
+let ``mergeSources: Merging one DisputedCtx and one RefutedCtx results in RefutedCtx``
+    (a: int, NonWhiteSpaceString n1, lf1: int, lf2: int, gf1: int, gf2: int)
+    =
+    let field1 = mkName n1 |> Option.get
+    let gfs1 = [gf1]
+    let lfs1 = Map.ofList [([field1], [lf1])]
+    let gfs2 = [gf2]
+    let lfs2 = Map.ofList [([field1], [lf2])]
+    let lfsResult = Utilities.mergeFailures lfs1 lfs2
+    let input1 = DisputedCtx (gfs1, lfs1, a)
+    let input2 = RefutedCtx (gfs2, lfs2)
+    let expected = RefutedCtx (gfs1 @ gfs2, lfsResult)
+    Assert.Equal(expected, VCtx.mergeSources input1 input2)
+
+[<Property>]
+let ``mergeSources: Merging two RefutedCtx results in RefutedCtx``
+    (NonWhiteSpaceString n1, lf1: int, lf2: int, gf1: int, gf2: int)
+    =
+    let field1 = mkName n1 |> Option.get
+    let gfs1 = [gf1]
+    let lfs1 = Map.ofList [([field1], [lf1])]
+    let gfs2 = [gf2]
+    let lfs2 = Map.ofList [([field1], [lf2])]
+    let lfsResult = Utilities.mergeFailures lfs1 lfs2
+    let input1 = RefutedCtx (gfs1, lfs1)
+    let input2 = RefutedCtx (gfs2, lfs2)
+    let expected = RefutedCtx (gfs1 @ gfs2, lfsResult)
+    Assert.Equal(expected, VCtx.mergeSources input1 input2)
+
 [<Fact>]
 let ``VCtxBuilder.Zero: Returns ValidCtx unit`` () =
     VCtxBuilder().Zero() |> should equal (ValidCtx ())

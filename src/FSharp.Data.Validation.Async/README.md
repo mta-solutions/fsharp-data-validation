@@ -8,7 +8,9 @@ This library provides a small set of functions that extend the `FSharp.Data.Vali
 
 - `bindToAsync: ('A -> Async<VCtx<'F, 'B>>) -> VCtx<'F, 'A> -> Async<VCtx<'F, 'B>>`
 - `bindAsync: ('A -> Async<VCtx<'F, 'B>>) -> Async<VCtx<'F, 'A>> -> Async<VCtx<'F, 'B>>`
-- `bindFromAsync: ('A -> Async<'B>) -> VCtx<'F, 'A> -> Async<VCtx<'F, 'B>>`
+- `bindFromAsync: ('A -> VCtx<'F, 'B>) -> Async<VCtx<'F, 'A>> -> Async<VCtx<'F, 'B>>`
 - `combineAsync: Async<VCtx<'F, 'A>> -> Async<VCtx<'F, 'B>> -> Async<VCtx<'F, 'A * 'B>>`
-- `bindAndCombineAsync: ('A -> Async<VCtx<'F, 'B>>) -> Async<VCtx<'F, 'A>> -> Async<VCtx<'F, 'B>>`
+- `bindAndMergeSourcesAsync: ('A -> Async<VCtx<'F, 'B>>) -> Async<VCtx<'F, 'A>> -> Async<VCtx<'F, 'A * 'B>>`
+- `bindToAndMergeSourcesAsync: ('A -> Async<VCtx<'F, 'B>>) -> VCtx<'F, 'A> -> Async<VCtx<'F, 'A * 'B>>`
+- `bindFromAndMergeSourcesAsync: ('A -> VCtx<'F, 'B>) -> Async<VCtx<'F, 'A>> -> Async<VCtx<'F, 'A * 'B>>`
 - `mapAsync: ('A -> Async<'B>) -> VCtx<'F, 'A> -> Async<VCtx<'F, 'B>>`
