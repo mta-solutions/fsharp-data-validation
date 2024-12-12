@@ -46,16 +46,18 @@ module VCtx =
         | Global _a -> (gfs @ gfs', Utilities.mergeFailures lfs lfs')
 
     /// <summary>
-    /// Combines two validation contexts into a single validation context, preserving the result of both contexts.
+    /// Merges two validation contexts. If one of the contexts is refuted, the result is refuted. If one of the contexts
+    /// is disputed, the result is disputed. Otherwise, the result is valid. The result is a tuple of the values of the
+    /// two input contexts.
     /// </summary>
     /// <param name="v1">The first validation context.</param>
     /// <param name="v2">The second validation context.</param>
     /// <returns>A validation context that combines the results of the two input validation contexts.</returns>
     /// <remarks>
-    /// This function takes two validation contexts <c>v1</c> and <c>v2</c> and returns a new validation context.
+    /// This function takes two validation contexts <c>v1</c> and <c>v2</c> and returns a tupled validation context.
     /// Prioritizes refuted contexts over disputed contexts and disputed contexts over valid contexts.
     /// </remarks>
-    let combine (v1: VCtx<'F, 'A>) (v2: VCtx<'F, 'B>): VCtx<'F, 'A * 'B> =
+    let mergeSources (v1: VCtx<'F, 'A>) (v2: VCtx<'F, 'B>): VCtx<'F, 'A * 'B> =
         match (v1, v2) with
         | ValidCtx a, ValidCtx b                                    -> ValidCtx (a, b)
         | ValidCtx a, DisputedCtx (gfs', lfs', b)                   -> DisputedCtx (gfs', lfs', (a, b))
@@ -72,16 +74,7 @@ type VCtxBuilder() =
         VCtx.bind fn v
 
     member this.MergeSources(v1: VCtx<'F, 'A>, v2: VCtx<'F, 'B>) =
-        match (v1, v2) with
-        | ValidCtx a, ValidCtx b                                    -> ValidCtx (a, b)
-        | ValidCtx _, DisputedCtx (gfs', lfs', _)                   -> RefutedCtx (gfs', lfs')
-        | ValidCtx _, RefutedCtx (gfs', lfs')                       -> RefutedCtx (gfs', lfs')
-        | DisputedCtx (gfs, lfs, _), ValidCtx _                     -> RefutedCtx (gfs, lfs)
-        | DisputedCtx (gfs, lfs, _), DisputedCtx (gfs', lfs', _)    -> RefutedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs')
-        | DisputedCtx (gfs, lfs, _), RefutedCtx (gfs', lfs')        -> RefutedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs')
-        | RefutedCtx (gfs, lfs), ValidCtx _                         -> RefutedCtx (gfs, lfs)
-        | RefutedCtx (gfs, lfs), DisputedCtx (gfs', lfs', _)        -> RefutedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs')
-        | RefutedCtx (gfs, lfs), RefutedCtx (gfs', lfs')            -> RefutedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs')
+        VCtx.mergeSources v1 v2
 
     member this.For(v:VCtx<'F, 'A>, fn:'A -> VCtx<'F, 'B>): VCtx<'F, 'B> = this.Bind(v, fn)
 

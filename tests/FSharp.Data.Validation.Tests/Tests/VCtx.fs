@@ -182,7 +182,7 @@ let ``VCtxBuilder.MergeSources: Merges two ValidCtx into a tuple``
     |> should equal (ValidCtx (a, b))
 
 [<Property>]
-let ``VCtxBuilder.MergeSources: Merging one Valid and one DisputedCtx results in RefutedCtx``
+let ``VCtxBuilder.MergeSources: Merging one Valid and one DisputedCtx results in DisputedCtx``
     (a : int, b : int, NonWhiteSpaceString n1, lf1 : int, gf1: int)
     =
     let field1 = mkName n1 |> Option.get
@@ -191,10 +191,11 @@ let ``VCtxBuilder.MergeSources: Merging one Valid and one DisputedCtx results in
 
     let input1 = ValidCtx a, DisputedCtx (gfs, lfs, b)
     let input2 = DisputedCtx (gfs, lfs, b), ValidCtx a
-    let expected = RefutedCtx(gfs, lfs)
+    let expected1 = DisputedCtx(gfs, lfs, (a, b))
+    let expected2 = DisputedCtx(gfs, lfs, (b, a))
 
-    Assert.Equal(expected, VCtxBuilder().MergeSources(input1))
-    Assert.Equal(expected, VCtxBuilder().MergeSources(input2))
+    Assert.Equal(expected1, VCtxBuilder().MergeSources(input1))
+    Assert.Equal(expected2, VCtxBuilder().MergeSources(input2))
 
 [<Property>]
 let ``VCtxBuilder.MergeSources: Merging one Valid and one RefutedCtx results in RefutedCtx``
@@ -212,7 +213,7 @@ let ``VCtxBuilder.MergeSources: Merging one Valid and one RefutedCtx results in 
     Assert.Equal(expected, VCtxBuilder().MergeSources(input2))
 
 [<Property>]
-let ``VCtxBuilder.MergeSources: Merging two DisputedCtx results in RefutedCtx``
+let ``VCtxBuilder.MergeSources: Merging two DisputedCtx results in DisputedCtx``
     (a : int, b : int, NonWhiteSpaceString n1, lf1 : int, lf2 : int, gf1 : int, gf2 : int)
     =
     let field1 = mkName n1 |> Option.get
@@ -223,8 +224,8 @@ let ``VCtxBuilder.MergeSources: Merging two DisputedCtx results in RefutedCtx``
 
     let input1 = DisputedCtx (gfs1, lfs1, a), DisputedCtx (gfs2, lfs2, b)
     let input2 = DisputedCtx (gfs2, lfs2, b), DisputedCtx (gfs1, lfs1, a)
-    let expected1 = RefutedCtx(gfs1 @ gfs2, Map.ofList [([field1], [lf1; lf2])])
-    let expected2 = RefutedCtx(gfs2 @ gfs1, Map.ofList [([field1], [lf2; lf1])])
+    let expected1 = DisputedCtx(gfs1 @ gfs2, Map.ofList [([field1], [lf1; lf2])], (a, b))
+    let expected2 = DisputedCtx(gfs2 @ gfs1, Map.ofList [([field1], [lf2; lf1])], (b, a))
 
     Assert.Equal(expected1, VCtxBuilder().MergeSources(input1))
     Assert.Equal(expected2, VCtxBuilder().MergeSources(input2))
