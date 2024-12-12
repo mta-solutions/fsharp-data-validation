@@ -69,3 +69,72 @@ module VCtx =
     /// <returns>A validation context of type <c>VCtx&lt;'F, 'B&gt;</c>.</returns>
     let bindFromAsync (fn:'A -> VCtx<'F, 'B>) (c: Async<VCtx<'F, 'A>>): Async<VCtx<'F, 'B>> =
         bindAsync (fn >> async.Return) c
+
+    /// <summary>
+    /// Combines two asynchronous computations of validation contexts into a single asynchronous computation.
+    /// </summary>
+    /// <remarks>
+    /// This function takes two asynchronous computations <c>c1</c> and <c>c2</c> of type <c>Async&lt;VCtx&lt;'F, 'A&gt;&gt;</c>
+    /// and returns an asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'A * 'B&gt;&gt;</c> that combines the results.
+    /// </remarks>
+    /// <param name="c1">An asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'A&gt;&gt;</c>.</param>
+    /// <param name="c2">An asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'B&gt;&gt;</c>.</param>
+    /// <returns>An asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'A * 'B&gt;&gt;</c>.</returns>
+    /// <seealso cref="VCtx.combine"/>
+    let combineAsync
+        (c1: Async<VCtx<'F,'A>>)
+        (c2: Async<VCtx<'F,'B>>)
+        : Async<VCtx<'F,'A * 'B>> =
+        async {
+            let! a = c1
+            let! b = c2
+            return VCtx.combine a b
+        }
+
+    /// <summary>
+    /// Binds a function that returns an asynchronous computation to an asynchronous computation.
+    /// </summary>
+    /// <remarks>
+    /// This function takes a function <c>fn</c> that transforms a value of type <c>'A</c> into an asynchronous computation
+    /// of type <c>Async&lt;VCtx&lt;'F, 'B&gt;&gt;</c> and an asynchronous computation <c>c</c> of type <c>Async&lt;VCtx&lt;'F, 'A&gt;&gt;</c>.
+    /// It returns an asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'A * 'B&gt;&gt;</c> that combines the results.
+    /// </remarks>
+    /// <param name="fn">A function that takes a value of type <c>'A</c> and returns an asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'B&gt;&gt;</c>.</param>
+    /// <param name="c">An asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'A&gt;&gt;</c>.</param>
+    /// <returns>An asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'A * 'B&gt;&gt;</c>.</returns>
+    let bindAndCombineAsync
+        (fn: 'A -> Async<VCtx<'F,'B>>)
+        (c: Async<VCtx<'F,'A>>)
+        : Async<VCtx<'F,'A * 'B>> =
+        async {
+            let! c' = c
+            let! b' = bindToAsync fn c'
+            return VCtx.combine c' b'
+        }
+
+    /// <summary>
+    /// Maps a function over the value of a validation context. The function returns an asynchronous computation.
+    /// </summary>
+    /// <remarks>
+    /// This function takes a function <c>fn</c> that transforms a value of type <c>'A</c> into an asynchronous computation
+    /// of type <c>Async&lt;'B&gt;</c> and an asynchronous validation context <c>c</c> of type <c>Async&lt;VCtx&lt;'F, 'A&gt;&gt;</c>.
+    /// It returns an asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'B&gt;&gt;</c>.
+    /// </remarks>
+    /// <param name="fn">A function that takes a value of type <c>'A</c> and returns an asynchronous computation of type <c>Async&lt;'B&gt;</c>.</param>
+    /// <param name="c">An asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'A&gt;&gt;</c>.</param>
+    /// <returns>An asynchronous computation of type <c>Async&lt;VCtx&lt;'F, 'B&gt;&gt;</c>.</returns>
+    let mapAsync
+        (fn: 'A -> Async<'B>)
+        (c: Async<VCtx<'F,'A>>)
+        : Async<VCtx<'F,'B>> =
+        async {
+            let! c' = c
+            match c' with
+            | ValidCtx a                ->
+                let! b = fn a
+                return ValidCtx b
+            | RefutedCtx (gfs,lfs)      -> return RefutedCtx (gfs,lfs)
+            | DisputedCtx (gfs,lfs,a)   ->
+                let! b = fn a
+                return DisputedCtx (gfs,lfs, b)
+        }
