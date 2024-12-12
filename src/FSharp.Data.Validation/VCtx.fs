@@ -45,6 +45,28 @@ module VCtx =
             (gfs, Utilities.mergeFailures lfs <| Utilities.mergeFailures lfs3 lfs2)
         | Global _a -> (gfs @ gfs', Utilities.mergeFailures lfs lfs')
 
+    /// <summary>
+    /// Combines two validation contexts into a single validation context, preserving the result of both contexts.
+    /// </summary>
+    /// <param name="v1">The first validation context.</param>
+    /// <param name="v2">The second validation context.</param>
+    /// <returns>A validation context that combines the results of the two input validation contexts.</returns>
+    /// <remarks>
+    /// This function takes two validation contexts <c>v1</c> and <c>v2</c> and returns a new validation context.
+    /// Prioritizes refuted contexts over disputed contexts and disputed contexts over valid contexts.
+    /// </remarks>
+    let combine (v1: VCtx<'F, 'A>) (v2: VCtx<'F, 'B>): VCtx<'F, 'A * 'B> =
+        match (v1, v2) with
+        | ValidCtx a, ValidCtx b                                    -> ValidCtx (a, b)
+        | ValidCtx a, DisputedCtx (gfs', lfs', b)                   -> DisputedCtx (gfs', lfs', (a, b))
+        | ValidCtx _, RefutedCtx (gfs', lfs')                       -> RefutedCtx (gfs', lfs')
+        | DisputedCtx (gfs, lfs, a), ValidCtx b                     -> DisputedCtx (gfs, lfs, (a, b))
+        | DisputedCtx (gfs, lfs, a), DisputedCtx (gfs', lfs', b)    -> DisputedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs', (a, b))
+        | DisputedCtx (gfs, lfs, _), RefutedCtx (gfs', lfs')        -> RefutedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs')
+        | RefutedCtx (gfs, lfs), ValidCtx _                         -> RefutedCtx (gfs, lfs)
+        | RefutedCtx (gfs, lfs), DisputedCtx (gfs', lfs', _)        -> RefutedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs')
+        | RefutedCtx (gfs, lfs), RefutedCtx (gfs', lfs')            -> RefutedCtx (gfs @ gfs', Utilities.mergeFailures lfs lfs')
+
 type VCtxBuilder() =
     member this.Bind(v:VCtx<'F, 'A>, fn:'A -> VCtx<'F, 'B>): VCtx<'F, 'B> =
         VCtx.bind fn v
