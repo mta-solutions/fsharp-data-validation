@@ -1,5 +1,14 @@
 # Revision history for fsharp-data-validation
 
+## 2.2.0 - 12/12/2024
+
+* Address package vulnerabilities.
+* Add `FSharp.Data.Validation.Async.Tests` project for testing async validation.
+* Add `mergeSources` function to `FSharp.Data.Validation` module.
+* Add additional functions to `FSharp.Data.Validation.Async` module.
+* Add README.md file for the `FSharp.Data.Validation.Async` project.
+* Fix `VCtxBuilder.MergeSources` function to be less stringent about disputed results
+
 ## 2.1.0 - 12/10/2024
 
 * Add `FSharp.Data.Validation.Async` project for easier async validation.
