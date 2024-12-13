@@ -18,9 +18,10 @@
       <PackagePath>\</PackagePath>
     </None>
   </ItemGroup>
-  
+
   <ItemGroup>
     <PackageReference Update="FSharp.Core" Version="[6.0.6,)" />
     <PackageReference Include="Giraffe" Version="[6,)" />
+    <PackageReference Include="System.Text.Json" Version="[6.0.11,)" />
   </ItemGroup>
 </Project>

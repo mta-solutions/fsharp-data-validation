@@ -1069,20 +1069,9 @@ Here is an example of what it might look like.
 ### Validating Async Data
 
 What if we need to validate data that is retrieved asynchronously?
-There are three functions available in the `FSharp.Data.Validation.Async` package that can help with this:
-
-- `bindToAsync`
-- `bindAsync`
-- `bindFromAsync`
-
-The `bindToAsync` function is used to bind a value to an asynchronous computation.
+There are multiple functions available in the `FSharp.Data.Validation.Async` package that can help with this.
+For example, the `bindToAsync` function is used to bind a value to an asynchronous computation.
 The value is passed to the computation and the result is returned.
-
-The `bindAsync` function is used to bind an asynchronous computation to a value.
-The computation is executed and the result is passed to the function.
-
-The `bindFromAsync` function is used to bind an asynchronous computation to another asynchronous computation.
-The first computation is executed and the result is passed to the second computation.
 
 Let's say we have a function that retrieves a user's data from a database.
 We want to validate the data before we use it.
@@ -1111,6 +1100,8 @@ let getUserDataAndValidate (id:int): Async<Proof<UserDataFailure, UserData>> =
 The `getUserDataAndValidate` function retrieves the user data and validates it.
 The `bindToAsync` function is used to bind the data to the validation computation.
 The result is an asynchronous computation that returns the validated data.
+
+See the `FSharp.Data.Validation.Async` documentation for more information on the available functions.
 
 ## Validation Operations
 
