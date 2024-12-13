@@ -1,5 +1,13 @@
 # Revision history for fsharp-data-validation
 
+## 2.0.1 - 12/12/2024
+
+* Address package vulnerabilities.
+
+## 2.0.0 - 10/08/2024
+
+* Update to use FSharpPlus instead of custom NonEmptyList type.
+
 ## 1.0.0 - 11/17/2023
 
 * Fix package dependency version ranges.
