@@ -1,4 +1,4 @@
-# Revision history for fsharp-data-validation
+# Revision history for fsharp-data-validation-giraffe
 
 ## 2.0.1 - 12/12/2024
 
