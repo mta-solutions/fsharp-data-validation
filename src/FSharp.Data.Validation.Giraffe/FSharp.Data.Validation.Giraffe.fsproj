@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Description>Model validation helpers for Giraffe.</Description>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -20,8 +20,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Update="FSharp.Core" Version="[6.0.6,)" />
-    <PackageReference Include="Giraffe" Version="[6,)" />
-    <PackageReference Include="System.Text.Json" Version="[6.0.11,)" />
+    <PackageReference Update="FSharp.Core" Version="[8.0.100,)" />
+    <PackageReference Include="Giraffe" Version="[7,)" />
+    <PackageReference Include="System.Text.Json" Version="[8.0.5,)" />
   </ItemGroup>
 </Project>
