@@ -143,3 +143,138 @@ Finally, we handle the request using the `handleCreateUser` function to create a
 The `IModelValidation` interface provides a flexible way to define and execute model validation logic using FSharp.Data.Validation.
 By integrating it with Giraffe, you can easily validate and handle HTTP requests with validated models.
 The example provided demonstrates how to use the interface to validate a `NewUserVM` model and transform it into a `NewUser` model with additional constraints.
+
+## Additional Examples
+
+### Multi-Field Form Validation with Error Response
+
+```fsharp
+type UserCreationFailure =
+    | NameRequired
+    | NameTooShort
+    | InvalidUsername of UsernameFailures
+    | InvalidPassword of PasswordFailures
+    | PasswordMismatch
+
+type UserCreateVM =
+    { Name: string option
+      Username: string option
+      Password: string option
+      ConfirmPassword: string option }
+
+    member this.ValidateModel() =
+        validation {
+            let! name =
+                validation {
+                    withField (fun () -> this.Name)
+                    refuteWith (isRequired NameRequired)
+                    refuteWith (fun n -> 
+                        if String.length n < 2 then Some NameTooShort else None
+                    )
+                    qed id
+                }
+
+            and! username =
+                validation {
+                    withField (fun () -> this.Username)
+                    refuteWith (isRequired RequiredField)
+                    refuteWithProof (Username.make >> Proof.mapInvalid InvalidUsername)
+                    qed id
+                }
+
+            and! password =
+                validation {
+                    withField (fun () -> this.Password)
+                    refuteWith (isRequired RequiredField)
+                    refuteWithProof (Password.make >> Proof.mapInvalid InvalidPassword)
+                    qed id
+                }
+
+            and! confirmPassword =
+                validation {
+                    withField (fun () -> this.ConfirmPassword)
+                    refuteWith (isRequired RequiredField)
+                    qed id
+                }
+
+            if password <> confirmPassword then
+                disputeWithFact PasswordMismatch false |> ignore
+
+            return
+                { Name = name
+                  Username = username
+                  Password = password }
+        }
+        |> fromVCtx
+
+    interface IModelValidation<UserCreateVM, NewUser> with
+        member this.Validate() =
+            match this.ValidateModel() |> Proof.toResult with
+            | Ok user -> Ok user
+            | Error failures -> 
+                Error(RequestErrors.BAD_REQUEST {| errors = failures |})
+```
+
+### Error Response Formatting
+
+When validation fails, you can format the response according to your API contract:
+
+```fsharp
+let toErrorResponse (failures: ValidationFailures<'F>) : obj =
+    {| 
+        globalErrors = failures.Failures |> List.map string
+        fieldErrors = 
+            failures.Fields
+            |> Map.toList
+            |> List.map (fun (fieldPath, errors) ->
+                let fieldName = 
+                    fieldPath
+                    |> String.concat "."
+                    |> fun s -> s.Substring(0, 1).ToLower() + s.Substring(1)
+                (fieldName, errors |> List.map string)
+            )
+            |> Map.ofList
+    |}
+
+let handleValidationError (json: obj) =
+    RequestErrors.BAD_REQUEST json
+```
+
+### Integration Patterns
+
+#### Single Route with Validation
+
+```fsharp
+let webApp =
+    POST >=> route "/api/users" 
+    >=> bindModel<UserCreateVM> None (fun (vm: UserCreateVM) ->
+        validateModel (fun user ->
+            // Handle validated user
+            Successful.CREATED { id = user.Id; name = user.Name }
+        ) vm
+    )
+```
+
+#### Route Handler Pipeline
+
+```fsharp
+let handleCreateUser (user: ValidatedUser) : HttpHandler =
+    fun (next: HttpFunc) (ctx: HttpContext) ->
+        task {
+            // Store in database
+            let! saved = saveUserAsync user
+            return! (Successful.CREATED saved) next ctx
+        }
+
+let createUserRoute =
+    POST >=> route "/api/users"
+    >=> bindModel<UserVM> None (validateModel handleCreateUser)
+```
+
+## Best Practices
+
+1. **Keep failure types per domain**: Define specific failure DUs for each domain concept (User, Product, etc.)
+2. **Compose validators**: Reuse primitive validators in complex type validators
+3. **Field-level vs global failures**: Use field context for field-specific issues, global for cross-field validation
+4. **Async validation sparingly**: Only use async for operations that truly need it (DB checks, external API calls)
+5. **Error responses**: Format validation failures consistently across your API
