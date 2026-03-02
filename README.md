@@ -31,6 +31,8 @@
     - [`refuteWithProof`](#refutewithproof)
     - [`refuteEachWith`](#refuteeachwith)
     - [`refuteEachWithProof`](#refuteeachwithproof)
+    - [`refuteWithValidation` **(New)**](#refutewithvalidation-new)
+    - [`refuteEachWithValidation` **(New)**](#refuteeachwithvalidation-new)
   - [`dispute*` Operations](#dispute-operations)
     - [`dispute`](#dispute)
     - [`disputeMany`](#disputemany)
@@ -63,6 +65,32 @@
   - [The `isGreaterThan` Helper](#the-isgreaterthan-helper)
   - [The `isLessThanOrEqual` Helper](#the-islessthanorequal-helper)
   - [The `isGreaterThanOrEqual` Helper](#the-isgreaterthanorequal-helper)
+  - [The `matchesRegex` Helper **(New)**](#the-matchesregex-helper-new)
+  - [The `containsAny` Helper **(New)**](#the-containsany-helper-new)
+  - [The `containsAll` Helper **(New)**](#the-containsall-helper-new)
+  - [The `startsWith` Helper **(New)**](#the-startswith-helper-new)
+  - [The `endsWith` Helper **(New)**](#the-endswith-helper-new)
+  - [The `isAlphanumeric` Helper **(New)**](#the-isalphanumeric-helper-new)
+  - [The `isAlpha` Helper **(New)**](#the-isalpha-helper-new)
+  - [The `isNumeric` Helper **(New)**](#the-isnumeric-helper-new)
+  - [The `inRange` Helper **(New)**](#the-inrange-helper-new)
+  - [The `inRangeExclusive` Helper **(New)**](#the-inrangeexclusive-helper-new)
+  - [The `isPositive` Helper **(New)**](#the-ispositive-helper-new)
+  - [The `isNegative` Helper **(New)**](#the-isnegative-helper-new)
+  - [The `isNonZero` Helper **(New)**](#the-isnonzero-helper-new)
+  - [The `isDistinct` Helper **(New)**](#the-isdistinct-helper-new)
+  - [The `containsAllElems` Helper **(New)**](#the-containsallelems-helper-new)
+  - [The `containsAnyElem` Helper **(New)**](#the-containsanyelem-helper-new)
+  - [The `allMatch` Helper **(New)**](#the-allmatch-helper-new)
+  - [The `anyMatch` Helper **(New)**](#the-anymatch-helper-new)
+  - [The `noneMatch` Helper **(New)**](#the-nonematch-helper-new)
+  - [The `isBefore` Helper **(New)**](#the-isbefore-helper-new)
+  - [The `isAfter` Helper **(New)**](#the-isafter-helper-new)
+  - [The `isBetweenDates` Helper **(New)**](#the-isbetweendates-helper-new)
+  - [The `isInPast` Helper **(New)**](#the-isinpast-helper-new)
+  - [The `isInFuture` Helper **(New)**](#the-isinfuture-helper-new)
+  - [The `isWeekday` Helper **(New)**](#the-isweekday-helper-new)
+  - [The `minimumAge` Helper **(New)**](#the-minimumage-helper-new)
   - [The `isValid` Helper](#the-isvalid-helper)
   - [The `isInvalid` Helper](#the-isinvalid-helper)
   - [The `flattenProofs` Helper](#the-flattenproofs-helper)
@@ -70,6 +98,11 @@
 - [Proof Helpers](#proof-helpers)
   - [`toResult` Helper](#toresult-helper)
   - [`toValidationFailures` Helper](#tovalidationfailures-helper)
+  - [`Proof.sequence` Combinator **(New)**](#proofsequence-combinator-new)
+  - [`Proof.traverse` Combinator **(New)**](#prooftraverse-combinator-new)
+  - [`Proof.bind` Combinator **(New)**](#proofbind-combinator-new)
+  - [`Proof.apply` Combinator **(New)**](#proofapply-combinator-new)
+  - [`Proof.choose` Combinator **(New)**](#proofchoose-combinator-new)
 - [Data-Validation Library for Haskell](#data-validation-library-for-haskell)
 
 ## Getting Started
@@ -1219,6 +1252,65 @@ validation {
 }
 ```
 
+#### `refuteWithValidation` **(New)**
+
+This custom operation runs a proof-returning validator and maps its failure type into your validation context's failure type.
+It ends validation immediately if the proof is invalid.
+
+**Example:**
+
+```fsharp
+type AppFailure = 
+    | ValidationError
+    | OtherError
+
+type InnerFailure = InvalidFormat
+
+let validate (str: string) : Proof<InnerFailure, int> =
+    match System.Int32.TryParse(str) with
+    | (true, num) -> Valid num
+    | (false, _) -> Invalid ([InvalidFormat], Map.empty)
+
+validation {
+    withValue "42"
+    refuteWithValidation validate (fun _ -> ValidationError)
+    qed id
+} |> fromVCtx
+// Result: Valid 42
+
+validation {
+    withValue "invalid"
+    refuteWithValidation validate (fun _ -> ValidationError)
+    qed id
+} |> fromVCtx
+// Result: Invalid ([ValidationError], Map.empty)
+```
+
+#### `refuteEachWithValidation` **(New)**
+
+Similar to `refuteWithValidation` but applies the validation to each element in a collection.
+Failures from the inner proof are mapped and collected per element.
+
+**Example:**
+
+```fsharp
+type AppFailure = ValidationError
+
+type InnerFailure = InvalidFormat
+
+let validate (str: string) : Proof<InnerFailure, int> =
+    match System.Int32.TryParse(str) with
+    | (true, num) -> Valid num
+    | (false, _) -> Invalid ([InvalidFormat], Map.empty)
+
+validation {
+    withValue ["1"; "2"; "invalid"]
+    refuteEachWithValidation validate (fun _ -> ValidationError)
+    qed id
+} |> fromVCtx
+// Result: Invalid - element at index 2 failed
+```
+
 ### `dispute*` Operations
 
 It is always good to collect as many validation failures as possible before ending validation.
@@ -1526,6 +1618,744 @@ This function checks that a value is less or equal to than another value.
 This function is used with the `dispute*` family of validation operations.
 This function checks that a value is greater than or equal to another value.
 
+### The `matchesRegex` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a string value matches the given regular expression pattern.
+
+**Example:**
+
+```fsharp
+type Failure = InvalidFormat
+
+let email = "user@example.com"
+
+validation {
+    withValue email
+    disputeWithFact InvalidFormat (matchesRegex @"^[^@]+@[^@]+\.[^@]+$")
+    qed id
+} |> fromVCtx
+// Result: Valid "user@example.com"
+
+let email = "invalid-email"
+validation {
+    withValue email
+    disputeWithFact InvalidFormat (matchesRegex @"^[^@]+@[^@]+\.[^@]+$")
+    qed id
+} |> fromVCtx
+// Result: Invalid ([InvalidFormat], Map.empty)
+```
+
+### The `containsAny` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a string contains at least one character from a given set.
+
+**Example:**
+
+```fsharp
+type Failure = NoSpecialChar
+
+let password = "password@123"
+
+validation {
+    withValue password
+    disputeWithFact NoSpecialChar (containsAny "!@#$%^&*")
+    qed id
+} |> fromVCtx
+// Result: Valid "password@123"
+
+let password = "password123"
+validation {
+    withValue password
+    disputeWithFact NoSpecialChar (containsAny "!@#$%^&*")
+    qed id
+} |> fromVCtx
+// Result: Invalid ([NoSpecialChar], Map.empty)
+```
+
+### The `containsAll` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a string contains all characters from a given set.
+
+**Example:**
+
+```fsharp
+type Failure = MissingRequiredChar
+
+let password = "P@ssw0rd!"
+
+validation {
+    withValue password
+    disputeWithFact MissingRequiredChar (containsAll "aA0!")
+    qed id
+} |> fromVCtx
+// Result: Valid "P@ssw0rd!" - has lowercase 'a', uppercase 'A', digit '0', and '!'
+
+let password = "P@ssword"
+validation {
+    withValue password
+    disputeWithFact MissingRequiredChar (containsAll "aA0!")
+    qed id
+} |> fromVCtx
+// Result: Invalid ([MissingRequiredChar], Map.empty) - missing digit
+```
+
+### The `startsWith` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a string value starts with a given prefix.
+
+**Example:**
+
+```fsharp
+type Failure = InvalidPrefix
+
+let skuCode = "PROD-12345"
+
+validation {
+    withValue skuCode
+    disputeWithFact InvalidPrefix (startsWith "PROD-")
+    qed id
+} |> fromVCtx
+// Result: Valid "PROD-12345"
+
+let skuCode = "INV-12345"
+validation {
+    withValue skuCode
+    disputeWithFact InvalidPrefix (startsWith "PROD-")
+    qed id
+} |> fromVCtx
+// Result: Invalid ([InvalidPrefix], Map.empty)
+```
+
+### The `endsWith` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a string value ends with a given suffix.
+
+**Example:**
+
+```fsharp
+type Failure = InvalidFileType
+
+let fileName = "document.pdf"
+
+validation {
+    withValue fileName
+    disputeWithFact InvalidFileType (endsWith ".pdf")
+    qed id
+} |> fromVCtx
+// Result: Valid "document.pdf"
+
+let fileName = "document.txt"
+validation {
+    withValue fileName
+    disputeWithFact InvalidFileType (endsWith ".pdf")
+    qed id
+} |> fromVCtx
+// Result: Invalid ([InvalidFileType], Map.empty)
+```
+
+### The `isAlphanumeric` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a string contains only alphanumeric characters (letters and digits).
+
+**Example:**
+
+```fsharp
+type Failure = InvalidCharacters
+
+let code = "ABC123"
+
+validation {
+    withValue code
+    disputeWithFact InvalidCharacters isAlphanumeric
+    qed id
+} |> fromVCtx
+// Result: Valid "ABC123"
+
+let code = "ABC-123"
+validation {
+    withValue code
+    disputeWithFact InvalidCharacters isAlphanumeric
+    qed id
+} |> fromVCtx
+// Result: Invalid ([InvalidCharacters], Map.empty)
+```
+
+### The `isAlpha` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a string contains only alphabetic characters (letters only).
+
+**Example:**
+
+```fsharp
+type Failure = ContainsNumbers
+
+let name = "JohnDoe"
+
+validation {
+    withValue name
+    disputeWithFact ContainsNumbers isAlpha
+    qed id
+} |> fromVCtx
+// Result: Valid "JohnDoe"
+
+let name = "John123"
+validation {
+    withValue name
+    disputeWithFact ContainsNumbers isAlpha
+    qed id
+} |> fromVCtx
+// Result: Invalid ([ContainsNumbers], Map.empty)
+```
+
+### The `isNumeric` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a string contains only numeric characters (digits only).
+
+**Example:**
+
+```fsharp
+type Failure = NotAllNumbers
+
+let pinCode = "1234"
+
+validation {
+    withValue pinCode
+    disputeWithFact NotAllNumbers isNumeric
+    qed id
+} |> fromVCtx
+// Result: Valid "1234"
+
+let pinCode = "12A4"
+validation {
+    withValue pinCode
+    disputeWithFact NotAllNumbers isNumeric
+    qed id
+} |> fromVCtx
+// Result: Invalid ([NotAllNumbers], Map.empty)
+```
+
+### The `inRange` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a numeric value is within an inclusive range (min ≤ value ≤ max).
+
+**Example:**
+
+```fsharp
+type Failure = OutOfRange
+
+let age = 25
+
+validation {
+    withValue age
+    disputeWithFact OutOfRange (inRange 18 65)
+    qed id
+} |> fromVCtx
+// Result: Valid 25
+
+let age = 10
+validation {
+    withValue age
+    disputeWithFact OutOfRange (inRange 18 65)
+    qed id
+} |> fromVCtx
+// Result: Invalid ([OutOfRange], Map.empty)
+```
+
+### The `inRangeExclusive` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a numeric value is within an exclusive range (min < value < max).
+
+**Example:**
+
+```fsharp
+type Failure = OutOfRange
+
+let temperature = 25.5
+
+validation {
+    withValue temperature
+    disputeWithFact OutOfRange (inRangeExclusive 0.0 100.0)
+    qed id
+} |> fromVCtx
+// Result: Valid 25.5
+
+let temperature = 0.0
+validation {
+    withValue temperature
+    disputeWithFact OutOfRange (inRangeExclusive 0.0 100.0)  // 0 is not included
+    qed id
+} |> fromVCtx
+// Result: Invalid ([OutOfRange], Map.empty)
+```
+
+### The `isPositive` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a numeric value is positive (greater than zero).
+
+**Example:**
+
+```fsharp
+type Failure = MustBePositive
+
+let price = 29.99m
+
+validation {
+    withValue price
+    disputeWithFact MustBePositive isPositive
+    qed id
+} |> fromVCtx
+// Result: Valid 29.99m
+
+let price = -10.0m
+validation {
+    withValue price
+    disputeWithFact MustBePositive isPositive
+    qed id
+} |> fromVCtx
+// Result: Invalid ([MustBePositive], Map.empty)
+```
+
+### The `isNegative` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a numeric value is negative (less than zero).
+
+**Example:**
+
+```fsharp
+type Failure = MustBeNegative
+
+let temperature = -5
+
+validation {
+    withValue temperature
+    disputeWithFact MustBeNegative isNegative
+    qed id
+} |> fromVCtx
+// Result: Valid -5
+
+let temperature = 10
+validation {
+    withValue temperature
+    disputeWithFact MustBeNegative isNegative
+    qed id
+} |> fromVCtx
+// Result: Invalid ([MustBeNegative], Map.empty)
+```
+
+### The `isNonZero` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a numeric value is not equal to zero.
+
+**Example:**
+
+```fsharp
+type Failure = CannotBeZero
+
+let divisor = 5
+
+validation {
+    withValue divisor
+    disputeWithFact CannotBeZero isNonZero
+    qed id
+} |> fromVCtx
+// Result: Valid 5
+
+let divisor = 0
+validation {
+    withValue divisor
+    disputeWithFact CannotBeZero isNonZero
+    qed id
+} |> fromVCtx
+// Result: Invalid ([CannotBeZero], Map.empty)
+```
+
+### The `isDistinct` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a collection contains no duplicate elements.
+
+**Example:**
+
+```fsharp
+type Failure = DuplicateItems
+
+let tags = ["tech"; "programming"; "fsharp"]
+
+validation {
+    withValue tags
+    disputeWithFact DuplicateItems isDistinct
+    qed id
+} |> fromVCtx
+// Result: Valid ["tech"; "programming"; "fsharp"]
+
+let tags = ["tech"; "programming"; "tech"]
+validation {
+    withValue tags
+    disputeWithFact DuplicateItems isDistinct
+    qed id
+} |> fromVCtx
+// Result: Invalid ([DuplicateItems], Map.empty)
+```
+
+### The `containsAllElems` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a collection contains all elements from another collection.
+
+**Example:**
+
+```fsharp
+type Failure = MissingRequiredRoles
+
+let userRoles = ["admin"; "moderator"; "user"]
+let requiredRoles = ["admin"; "user"]
+
+validation {
+    withValue userRoles
+    disputeWithFact MissingRequiredRoles (containsAllElems requiredRoles)
+    qed id
+} |> fromVCtx
+// Result: Valid ["admin"; "moderator"; "user"]
+
+let userRoles = ["moderator"; "user"]
+validation {
+    withValue userRoles
+    disputeWithFact MissingRequiredRoles (containsAllElems requiredRoles)
+    qed id
+} |> fromVCtx
+// Result: Invalid ([MissingRequiredRoles], Map.empty)
+```
+
+### The `containsAnyElem` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a collection contains at least one element from another collection.
+
+**Example:**
+
+```fsharp
+type Failure = NoValidOption
+
+let selectedOptions = ["optionA"; "optionB"]
+let validOptions = ["optionA"; "optionC"]
+
+validation {
+    withValue selectedOptions
+    disputeWithFact NoValidOption (containsAnyElem validOptions)
+    qed id
+} |> fromVCtx
+// Result: Valid ["optionA"; "optionB"]
+
+let selectedOptions = ["optionB"; "optionD"]
+validation {
+    withValue selectedOptions
+    disputeWithFact NoValidOption (containsAnyElem validOptions)
+    qed id
+} |> fromVCtx
+// Result: Invalid ([NoValidOption], Map.empty)
+```
+
+### The `allMatch` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that all elements in a collection satisfy a predicate.
+
+**Example:**
+
+```fsharp
+type Failure = NotAllPositive
+
+let numbers = [1; 2; 3; 4; 5]
+
+validation {
+    withValue numbers
+    disputeWithFact NotAllPositive (allMatch (fun n -> n > 0))
+    qed id
+} |> fromVCtx
+// Result: Valid [1; 2; 3; 4; 5]
+
+let numbers = [1; -2; 3; 4; 5]
+validation {
+    withValue numbers
+    disputeWithFact NotAllPositive (allMatch (fun n -> n > 0))
+    qed id
+} |> fromVCtx
+// Result: Invalid ([NotAllPositive], Map.empty)
+```
+
+### The `anyMatch` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that at least one element in a collection satisfies a predicate.
+
+**Example:**
+
+```fsharp
+type Failure = NoAdminFound
+
+let users = [{ Name = "John"; Role = "user" }; { Name = "Jane"; Role = "admin" }]
+
+validation {
+    withValue users
+    disputeWithFact NoAdminFound (anyMatch (fun u -> u.Role = "admin"))
+    qed id
+} |> fromVCtx
+// Result: Valid [...]
+
+let users = [{ Name = "John"; Role = "user" }; { Name = "Jane"; Role = "user" }]
+validation {
+    withValue users
+    disputeWithFact NoAdminFound (anyMatch (fun u -> u.Role = "admin"))
+    qed id
+} |> fromVCtx
+// Result: Invalid ([NoAdminFound], Map.empty)
+```
+
+### The `noneMatch` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that no elements in a collection satisfy a predicate.
+
+**Example:**
+
+```fsharp
+type Failure = InvalidContentFound
+
+let words = ["hello"; "world"; "peaceful"]
+
+validation {
+    withValue words
+    disputeWithFact InvalidContentFound (noneMatch (fun w -> w.Contains("bad")))
+    qed id
+} |> fromVCtx
+// Result: Valid ["hello"; "world"; "peaceful"]
+
+let words = ["hello"; "badword"; "peaceful"]
+validation {
+    withValue words
+    disputeWithFact InvalidContentFound (noneMatch (fun w -> w.Contains("bad")))
+    qed id
+} |> fromVCtx
+// Result: Invalid ([InvalidContentFound], Map.empty)
+```
+
+### The `isBefore` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a date/time value is before another date/time value.
+Works with any type that implements `IComparable`.
+
+**Example:**
+
+```fsharp
+type Failure = DateNotBefore
+
+let deadline = System.DateTime(2024, 12, 31)
+let submissionDate = System.DateTime(2024, 12, 25)
+
+validation {
+    withValue submissionDate
+    disputeWithFact DateNotBefore (isBefore deadline)
+    qed id
+} |> fromVCtx
+// Result: Valid (DateTime 2024-12-25)
+
+let submissionDate = System.DateTime(2025, 1, 5)
+validation {
+    withValue submissionDate
+    disputeWithFact DateNotBefore (isBefore deadline)
+    qed id
+} |> fromVCtx
+// Result: Invalid ([DateNotBefore], Map.empty)
+```
+
+### The `isAfter` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a date/time value is after another date/time value.
+Works with any type that implements `IComparable`.
+
+**Example:**
+
+```fsharp
+type Failure = TooEarly
+
+let eventStart = System.DateTime(2024, 12, 25)
+let registrationDate = System.DateTime(2024, 12, 20)
+
+validation {
+    withValue registrationDate
+    disputeWithFact TooEarly (isAfter eventStart) |> not  // Should be before
+    qed id
+} |> fromVCtx
+// Result: Valid - registration is before event
+
+let registrationDate = System.DateTime(2024, 12, 26)
+validation {
+    withValue registrationDate
+    disputeWithFact TooEarly (isAfter eventStart)
+    qed id
+} |> fromVCtx
+// Result: Valid (DateTime 2024-12-26) - after event start
+```
+
+### The `isBetweenDates` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a date/time value is between two other date/time values (inclusive).
+Works with any type that implements `IComparable`.
+
+**Example:**
+
+```fsharp
+type Failure = OutOfDateRange
+
+let startDate = System.DateTime(2024, 1, 1)
+let endDate = System.DateTime(2024, 12, 31)
+let checkDate = System.DateTime(2024, 6, 15)
+
+validation {
+    withValue checkDate
+    disputeWithFact OutOfDateRange (isBetweenDates startDate endDate)
+    qed id
+} |> fromVCtx
+// Result: Valid (DateTime 2024-06-15)
+
+let checkDate = System.DateTime(2025, 1, 1)
+validation {
+    withValue checkDate
+    disputeWithFact OutOfDateRange (isBetweenDates startDate endDate)
+    qed id
+} |> fromVCtx
+// Result: Invalid ([OutOfDateRange], Map.empty)
+```
+
+### The `isInPast` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a DateTime value is in the past (before today).
+
+**Example:**
+
+```fsharp
+type Failure = DateNotInPast
+
+let birthDate = System.DateTime(2000, 1, 15)
+
+validation {
+    withValue birthDate
+    disputeWithFact DateNotInPast isInPast
+    qed id
+} |> fromVCtx
+// Result: Valid (DateTime 2000-01-15) - is in the past
+
+let futureDate = System.DateTime(2099, 12, 31)
+validation {
+    withValue futureDate
+    disputeWithFact DateNotInPast isInPast
+    qed id
+} |> fromVCtx
+// Result: Invalid ([DateNotInPast], Map.empty)
+```
+
+### The `isInFuture` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a DateTime value is in the future (after today).
+
+**Example:**
+
+```fsharp
+type Failure = DateNotInFuture
+
+let eventDate = System.DateTime(2099, 12, 31)
+
+validation {
+    withValue eventDate
+    disputeWithFact DateNotInFuture isInFuture
+    qed id
+} |> fromVCtx
+// Result: Valid (DateTime 2099-12-31) - is in the future
+
+let pastDate = System.DateTime(2000, 1, 15)
+validation {
+    withValue pastDate
+    disputeWithFact DateNotInFuture isInFuture
+    qed id
+} |> fromVCtx
+// Result: Invalid ([DateNotInFuture], Map.empty)
+```
+
+### The `isWeekday` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a DateTime value falls on a weekday (Monday through Friday).
+
+**Example:**
+
+```fsharp
+type Failure = NotAWorkday
+
+let workDate = System.DateTime(2024, 12, 23)  // Monday
+
+validation {
+    withValue workDate
+    disputeWithFact NotAWorkday isWeekday
+    qed id
+} |> fromVCtx
+// Result: Valid (DateTime 2024-12-23)
+
+let weekendDate = System.DateTime(2024, 12, 28)  // Saturday
+validation {
+    withValue weekendDate
+    disputeWithFact NotAWorkday isWeekday
+    qed id
+} |> fromVCtx
+// Result: Invalid ([NotAWorkday], Map.empty)
+```
+
+### The `minimumAge` Helper **(New)**
+
+This function is used with the `dispute*` family of validation operations.
+This function checks that a DateTime represents someone at least the specified number of years old.
+
+**Example:**
+
+```fsharp
+type Failure = TooYoung
+
+let birthDate = System.DateTime(2000, 6, 15)
+let today = System.DateTime.Today
+
+validation {
+    withValue birthDate
+    disputeWithFact TooYoung (minimumAge 18)
+    qed id
+} |> fromVCtx
+// Result: Valid - person is 24 years old (over 18)
+
+let birthDate = System.DateTime(2010, 6, 15)
+validation {
+    withValue birthDate
+    disputeWithFact TooYoung (minimumAge 18)
+    qed id
+} |> fromVCtx
+// Result: Invalid ([TooYoung], Map.empty) - person is 14 years old
+```
+
 ### The `isValid` Helper
 
 This function is used with the `dispute*` family of validation operations.
@@ -1558,6 +2388,174 @@ The `toResult` helper converts a `Proof<'F,'A>` value to a `Result<'A,Validation
 ### `toValidationFailures` Helper
 
 If you are only interested in the failures, you can use the `toValidationFailures` function to convert a `Proof<'F,'A>` to a `Option<ValidationFailures<'F>>`.
+
+### `Proof.sequence` Combinator **(New)**
+
+The `Proof.sequence` combinator transforms a `Proof<'F, 'A> list` into a `Proof<'F, 'A list>`.
+This is useful when you have a list of independent validations and want to collect them into a single proof with all failures aggregated.
+
+**Example:**
+
+```fsharp
+type Failure = InvalidEmail
+
+let emailAddresses = 
+    ["user1@example.com"; "invalid-email"; "user2@example.com"]
+
+let proofs = 
+    emailAddresses 
+    |> List.map (fun email ->
+        validation {
+            withValue email
+            disputeWithFact InvalidEmail (fun s -> s.Contains("@"))
+            qed id
+        } |> fromVCtx
+    )
+
+let result = Proof.sequence proofs
+
+match result with
+| Valid emails -> 
+    printfn "All valid: %A" emails
+| Invalid (failures, _) ->
+    printfn "Some failed: %A" failures
+    // Result: Invalid with list of failures
+```
+
+### `Proof.traverse` Combinator **(New)**
+
+The `Proof.traverse` combinator applies a validation function to each element in a list and sequences the results.
+It's equivalent to `List.map` followed by `sequence`.
+
+**Example:**
+
+```fsharp
+type Failure = InvalidNumber
+
+let validateNumber (str: string) : Proof<Failure, int> =
+    match System.Int32.TryParse(str) with
+    | (true, num) -> Valid num
+    | (false, _) -> Invalid ([InvalidNumber], Map.empty)
+
+let inputs = ["1"; "abc"; "3"]
+
+let result = Proof.traverse validateNumber inputs
+
+match result with
+| Valid numbers ->
+    printfn "All valid: %A" numbers
+| Invalid (failures, _) ->
+    printfn "Some failed: %A" failures
+    // Result: Invalid ([InvalidNumber], ...)
+```
+
+### `Proof.bind` Combinator **(New)**
+
+The `Proof.bind` combinator provides monadic binding for the `Proof` type.
+Use it to chain validations where the success of one validation depends on the value of another.
+
+**Example:**
+
+```fsharp
+type Failure = InvalidFormat | OutOfRange
+
+let parseAndValidate (str: string) : Proof<Failure, int> =
+    match System.Int32.TryParse(str) with
+    | (true, num) -> Valid num
+    | (false, _) -> Invalid ([InvalidFormat], Map.empty)
+
+let checkRange (num: int) : Proof<Failure, int> =
+    if num >= 0 && num <= 100 then
+        Valid num
+    else
+        Invalid ([OutOfRange], Map.empty)
+
+let str = "50"
+let result = Proof.bind checkRange (parseAndValidate str)
+
+match result with
+| Valid num -> 
+    printfn "Valid: %d" num  // Output: Valid: 50
+| Invalid (failures, _) ->
+    printfn "Failed: %A" failures
+```
+
+### `Proof.apply` Combinator **(New)**
+
+The `Proof.apply` combinator provides applicative application for the `Proof` type.
+Use it to apply a proof-wrapped function to a proof-wrapped value, combining all failures.
+
+**Example:**
+
+```fsharp
+type Failure = InvalidNumber | InvalidOperation
+
+let makeAdder (x: string) : Proof<Failure, int -> int> =
+    match System.Int32.TryParse(x) with
+    | (true, num) -> Valid (fun y -> num + y)
+    | (false, _) -> Invalid ([InvalidNumber], Map.empty)
+
+let makeNumber (y: string) : Proof<Failure, int> =
+    match System.Int32.TryParse(y) with
+    | (true, num) -> Valid num
+    | (false, _) -> Invalid ([InvalidNumber], Map.empty)
+
+let str1 = "10"
+let str2 = "20"
+
+let adderProof = makeAdder str1
+let numProof = makeNumber str2
+
+let result = Proof.apply adderProof numProof
+
+match result with
+| Valid sum -> 
+    printfn "Result: %d" sum  // Output: Result: 30
+| Invalid (failures, _) ->
+    printfn "Failed: %A" failures
+```
+
+### `Proof.choose` Combinator **(New)**
+
+The `Proof.choose` combinator provides left-biased choice between two proofs.
+If the first proof is valid, it's returned; otherwise, the second proof is returned.
+
+**Example:**
+
+```fsharp
+type Failure = NotEmail | NotPhone
+
+let validateEmail (str: string) : Proof<Failure, string> =
+    if str.Contains("@") then
+        Valid str
+    else
+        Invalid ([NotEmail], Map.empty)
+
+let validatePhone (str: string) : Proof<Failure, string> =
+    if System.Char.IsDigit(str.[0]) then
+        Valid str
+    else
+        Invalid ([NotPhone], Map.empty)
+
+let contact = "user@example.com"
+let result = Proof.choose (validateEmail contact) (validatePhone contact)
+
+match result with
+| Valid contact -> 
+    printfn "Valid contact: %s" contact
+| Invalid (failures, _) ->
+    printfn "No valid contact: %A" failures
+
+// Try with invalid email but valid phone
+let contact = "1234567890"
+let result = Proof.choose (validateEmail contact) (validatePhone contact)
+
+match result with
+| Valid contact -> 
+    printfn "Valid contact: %s" contact  // Fallback to phone validation
+| Invalid (failures, _) ->
+    printfn "No valid contact: %A" failures
+```
 
 ## Data-Validation Library for Haskell
 
