@@ -3,7 +3,6 @@ module FSharp.Data.Validation.Tests.Required
 open Xunit
 open FsCheck
 open FsCheck.Xunit
-open FsUnit.Xunit
 
 open FSharp.Data.Validation
 

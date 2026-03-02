@@ -18,7 +18,6 @@
     <Compile Include="Tests\Validators\Numeric.fs" />
     <Compile Include="Tests\Validators\Required.fs" />
     <Compile Include="Tests\Validators\String.fs" />
-    <Compile Include="Tests\Validators\Temporal.fs" />
     <Compile Include="Program.fs" />
     <None Include="paket.references" />
   </ItemGroup>

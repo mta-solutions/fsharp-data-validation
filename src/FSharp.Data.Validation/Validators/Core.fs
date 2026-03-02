@@ -10,11 +10,9 @@ let fromVCtx<'F, 'A> (ctx: FSharp.Data.Validation.VCtx<'F, 'A>) : FSharp.Data.Va
     | FSharp.Data.Validation.RefutedCtx(gfs, lfs) -> FSharp.Data.Validation.Invalid(gfs, lfs)
 
 /// Checks that a `Result` value is a `Error`.
-/// If not, it adds the given failure to the result and validation end.
 let isError e = Result.isError e
 
 /// Checks that a `Result` value is a `Ok`.
-/// If not, it adds the given failure to the result and validation end.
 let isOk e = Result.isOk e
 
 /// tests if a 'Proof' is valid.
@@ -39,3 +37,13 @@ let raiseIfInvalid msg p =
     | FSharp.Data.Validation.Invalid(gfs, lfs) ->
         raise (FSharp.Data.Validation.Types.InvalidProofException<_>(msg, gfs, lfs))
     | FSharp.Data.Validation.Valid a -> a
+
+/// Checks that a comparable value is before the given threshold.
+let isBefore (threshold: 'T :> System.IComparable<'T>) (value: 'T) = value.CompareTo(threshold) < 0
+
+/// Checks that a comparable value is after the given threshold.
+let isAfter (threshold: 'T :> System.IComparable<'T>) (value: 'T) = value.CompareTo(threshold) > 0
+
+/// Checks that a comparable value is between the given start and end values (inclusive).
+let isBetween (start: 'T :> System.IComparable<'T>) (end': 'T) (value: 'T) =
+    value.CompareTo(start) >= 0 && value.CompareTo(end') <= 0

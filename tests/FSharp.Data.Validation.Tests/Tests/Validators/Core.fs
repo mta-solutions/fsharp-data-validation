@@ -168,3 +168,47 @@ let ``raiseIfInvalid: Returns value when result is Valid`` (a: int) =
 let ``raiseIfInvalid: Raises InvalidProofException if Invalid`` () =
     (fun () -> raiseIfInvalid "test" (Invalid([ "test" ], Map.empty)) |> ignore)
     |> should (throwWithMessage "test") typeof<InvalidProofException<string>>
+
+[<Fact>]
+let ``isBefore: Returns true when date is before threshold`` () =
+    let date1 = System.DateTime(2020, 1, 1)
+    let date2 = System.DateTime(2021, 1, 1)
+    isBefore date2 date1 |> should be True
+
+[<Fact>]
+let ``isBefore: Returns false when date is after threshold`` () =
+    let date1 = System.DateTime(2021, 1, 1)
+    let date2 = System.DateTime(2020, 1, 1)
+    isBefore date2 date1 |> should be False
+
+[<Fact>]
+let ``isBefore: Works with DateTimeOffset`` () =
+    let date1 = System.DateTimeOffset(2020, 1, 1, 0, 0, 0, System.TimeSpan.Zero)
+    let date2 = System.DateTimeOffset(2021, 1, 1, 0, 0, 0, System.TimeSpan.Zero)
+    isBefore date2 date1 |> should be True
+
+[<Fact>]
+let ``isAfter: Returns true when date is after threshold`` () =
+    let date1 = System.DateTime(2021, 1, 1)
+    let date2 = System.DateTime(2020, 1, 1)
+    isAfter date2 date1 |> should be True
+
+[<Fact>]
+let ``isAfter: Returns false when date is before threshold`` () =
+    let date1 = System.DateTime(2020, 1, 1)
+    let date2 = System.DateTime(2021, 1, 1)
+    isAfter date2 date1 |> should be False
+
+[<Fact>]
+let ``isBetween: Returns true when date is within range`` () =
+    let start = System.DateTime(2020, 1, 1)
+    let end' = System.DateTime(2022, 1, 1)
+    let date = System.DateTime(2021, 1, 1)
+    isBetween start end' date |> should be True
+
+[<Fact>]
+let ``isBetween: Returns false when date is outside range`` () =
+    let start = System.DateTime(2020, 1, 1)
+    let end' = System.DateTime(2021, 1, 1)
+    let date = System.DateTime(2022, 1, 1)
+    isBetween start end' date |> should be False

@@ -19,7 +19,6 @@
     <Compile Include="Validators\String.fs" />
     <Compile Include="Validators\Numeric.fs" />
     <Compile Include="Validators\Collection.fs" />
-    <Compile Include="Validators\Temporal.fs" />
     <None Include="..\..\README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>

@@ -86,11 +86,7 @@
   - [The `noneMatch` Helper **(New)**](#the-nonematch-helper-new)
   - [The `isBefore` Helper **(New)**](#the-isbefore-helper-new)
   - [The `isAfter` Helper **(New)**](#the-isafter-helper-new)
-  - [The `isBetweenDates` Helper **(New)**](#the-isbetweendates-helper-new)
-  - [The `isInPast` Helper **(New)**](#the-isinpast-helper-new)
-  - [The `isInFuture` Helper **(New)**](#the-isinfuture-helper-new)
-  - [The `isWeekday` Helper **(New)**](#the-isweekday-helper-new)
-  - [The `minimumAge` Helper **(New)**](#the-minimumage-helper-new)
+  - [The `isBetween` Helper **(New)**](#the-isbetween-helper-new)
   - [The `isValid` Helper](#the-isvalid-helper)
   - [The `isInvalid` Helper](#the-isinvalid-helper)
   - [The `flattenProofs` Helper](#the-flattenproofs-helper)
@@ -2157,8 +2153,8 @@ validation {
 ### The `isBefore` Helper **(New)**
 
 This function is used with the `dispute*` family of validation operations.
-This function checks that a date/time value is before another date/time value.
-Works with any type that implements `IComparable`.
+This function checks that a comparable value is before another value.
+Works with any type that implements `IComparable` (e.g., `DateTime`).
 
 **Example:**
 
@@ -2187,8 +2183,8 @@ validation {
 ### The `isAfter` Helper **(New)**
 
 This function is used with the `dispute*` family of validation operations.
-This function checks that a date/time value is after another date/time value.
-Works with any type that implements `IComparable`.
+This function checks that a comparable value is after another value.
+Works with any type that implements `IComparable` (e.g., `DateTimeOffset`).
 
 **Example:**
 
@@ -2214,12 +2210,11 @@ validation {
 // Result: Valid (DateTime 2024-12-26) - after event start
 ```
 
-### The `isBetweenDates` Helper **(New)**
+### The `isBetween` Helper **(New)**
 
 This function is used with the `dispute*` family of validation operations.
-This function checks that a date/time value is between two other date/time values (inclusive).
-Works with any type that implements `IComparable`.
-
+This function checks that a comparable value is between two other comparable values (inclusive).
+Works with any type that implements `IComparable` (e.g., `DateTime`).
 **Example:**
 
 ```fsharp
@@ -2231,7 +2226,7 @@ let checkDate = System.DateTime(2024, 6, 15)
 
 validation {
     withValue checkDate
-    disputeWithFact OutOfDateRange (isBetweenDates startDate endDate)
+    disputeWithFact OutOfDateRange (isBetween startDate endDate)
     qed id
 } |> fromVCtx
 // Result: Valid (DateTime 2024-06-15)
@@ -2239,123 +2234,10 @@ validation {
 let checkDate = System.DateTime(2025, 1, 1)
 validation {
     withValue checkDate
-    disputeWithFact OutOfDateRange (isBetweenDates startDate endDate)
+    disputeWithFact OutOfDateRange (isBetween startDate endDate)
     qed id
 } |> fromVCtx
 // Result: Invalid ([OutOfDateRange], Map.empty)
-```
-
-### The `isInPast` Helper **(New)**
-
-This function is used with the `dispute*` family of validation operations.
-This function checks that a DateTime value is in the past (before today).
-
-**Example:**
-
-```fsharp
-type Failure = DateNotInPast
-
-let birthDate = System.DateTime(2000, 1, 15)
-
-validation {
-    withValue birthDate
-    disputeWithFact DateNotInPast isInPast
-    qed id
-} |> fromVCtx
-// Result: Valid (DateTime 2000-01-15) - is in the past
-
-let futureDate = System.DateTime(2099, 12, 31)
-validation {
-    withValue futureDate
-    disputeWithFact DateNotInPast isInPast
-    qed id
-} |> fromVCtx
-// Result: Invalid ([DateNotInPast], Map.empty)
-```
-
-### The `isInFuture` Helper **(New)**
-
-This function is used with the `dispute*` family of validation operations.
-This function checks that a DateTime value is in the future (after today).
-
-**Example:**
-
-```fsharp
-type Failure = DateNotInFuture
-
-let eventDate = System.DateTime(2099, 12, 31)
-
-validation {
-    withValue eventDate
-    disputeWithFact DateNotInFuture isInFuture
-    qed id
-} |> fromVCtx
-// Result: Valid (DateTime 2099-12-31) - is in the future
-
-let pastDate = System.DateTime(2000, 1, 15)
-validation {
-    withValue pastDate
-    disputeWithFact DateNotInFuture isInFuture
-    qed id
-} |> fromVCtx
-// Result: Invalid ([DateNotInFuture], Map.empty)
-```
-
-### The `isWeekday` Helper **(New)**
-
-This function is used with the `dispute*` family of validation operations.
-This function checks that a DateTime value falls on a weekday (Monday through Friday).
-
-**Example:**
-
-```fsharp
-type Failure = NotAWorkday
-
-let workDate = System.DateTime(2024, 12, 23)  // Monday
-
-validation {
-    withValue workDate
-    disputeWithFact NotAWorkday isWeekday
-    qed id
-} |> fromVCtx
-// Result: Valid (DateTime 2024-12-23)
-
-let weekendDate = System.DateTime(2024, 12, 28)  // Saturday
-validation {
-    withValue weekendDate
-    disputeWithFact NotAWorkday isWeekday
-    qed id
-} |> fromVCtx
-// Result: Invalid ([NotAWorkday], Map.empty)
-```
-
-### The `minimumAge` Helper **(New)**
-
-This function is used with the `dispute*` family of validation operations.
-This function checks that a DateTime represents someone at least the specified number of years old.
-
-**Example:**
-
-```fsharp
-type Failure = TooYoung
-
-let birthDate = System.DateTime(2000, 6, 15)
-let today = System.DateTime.Today
-
-validation {
-    withValue birthDate
-    disputeWithFact TooYoung (minimumAge 18)
-    qed id
-} |> fromVCtx
-// Result: Valid - person is 24 years old (over 18)
-
-let birthDate = System.DateTime(2010, 6, 15)
-validation {
-    withValue birthDate
-    disputeWithFact TooYoung (minimumAge 18)
-    qed id
-} |> fromVCtx
-// Result: Invalid ([TooYoung], Map.empty) - person is 14 years old
 ```
 
 ### The `isValid` Helper
