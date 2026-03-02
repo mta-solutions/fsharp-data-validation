@@ -578,8 +578,279 @@ let ``VCtxBuilder.RefuteWith: When validation succeeds, the disputed context rem
     let expected = DisputedCtx([failure1], Map.ofList [], b)
     Assert.Equal(expected, result)
 
+// Tests for refute operator
 [<Property>]
-let ``VCtxBuilder.RefuteWithProof: When element validation fails, the valid context becomes a refuted context`` (NegativeInt i) =
+let ``VCtxBuilder.Refute: Refutes a ValidCtx`` (a: int, f: int) =
+    let input = ValidCtx(Global a)
+    let result = VCtxBuilder().Refute(input, f)
+    Assert.Equal(RefutedCtx([ f ], Map.empty), result)
+
+[<Property>]
+let ``VCtxBuilder.Refute: Refutes a DisputedCtx`` (a: int, f1: int, f2: int) =
+    let input = DisputedCtx([ f1 ], Map.empty, Global a)
+    let result = VCtxBuilder().Refute(input, f2)
+    Assert.Equal(RefutedCtx([ f1; f2 ], Map.empty), result)
+
+// Tests for dispute operator
+[<Property>]
+let ``VCtxBuilder.Dispute: Adds failure to ValidCtx`` (a: int, f: int) =
+    let input = ValidCtx(Global a)
+    let result = VCtxBuilder().Dispute(input, f)
+    Assert.Equal(DisputedCtx([ f ], Map.empty, Global a), result)
+
+[<Property>]
+let ``VCtxBuilder.Dispute: Adds failure to DisputedCtx`` (a: int, f1: int, f2: int) =
+    let input = DisputedCtx([ f1 ], Map.empty, Global a)
+    let result = VCtxBuilder().Dispute(input, f2)
+    Assert.Equal(DisputedCtx([ f1; f2 ], Map.empty, Global a), result)
+
+// Tests for refuteEachWith operator
+[<Property>]
+let ``VCtxBuilder.RefuteEachWith: Refutes on first failure`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+
+    let fn i a =
+        if a < 2 then Error "too small" else Ok(a * 2)
+
+    let result = VCtxBuilder().RefuteEachWith(input, fn)
+
+    match result with
+    | RefutedCtx(_, lfs) -> Assert.True(Map.containsKey [ mkName "[0]" |> Option.get ] lfs)
+    | _ -> failwith "Expected RefutedCtx"
+
+[<Property>]
+let ``VCtxBuilder.RefuteEachWith: Succeeds when all elements pass`` () =
+    let input = ValidCtx(Global [ 2; 3; 4 ])
+
+    let fn i a =
+        if a < 2 then Error "too small" else Ok(a * 2)
+
+    let result = VCtxBuilder().RefuteEachWith(input, fn)
+
+    match result with
+    | ValidCtx(Global xs) -> Assert.Equal([ 4; 6; 8 ], xs)
+    | _ -> failwith "Expected ValidCtx with transformed values"
+
+// Tests for refuteEachWithProof operator
+[<Property>]
+let ``VCtxBuilder.RefuteEachWithProof: Refutes on first Invalid`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+
+    let fn a =
+        if a < 2 then
+            Invalid([ "too small" ], Map.empty)
+        else
+            Valid(a * 2)
+
+    let result = VCtxBuilder().RefuteEachWithProof(input, fn)
+
+    match result with
+    | RefutedCtx(_, lfs) -> Assert.True(Map.containsKey [ mkName "[0]" |> Option.get ] lfs)
+    | _ -> failwith "Expected RefutedCtx"
+
+[<Property>]
+let ``VCtxBuilder.RefuteEachWithProof: Succeeds when all elements Valid`` () =
+    let input = ValidCtx(Global [ 2; 3; 4 ])
+
+    let fn a =
+        if a < 2 then
+            Invalid([ "too small" ], Map.empty)
+        else
+            Valid(a * 2)
+
+    let result = VCtxBuilder().RefuteEachWithProof(input, fn)
+
+    match result with
+    | ValidCtx(Global xs) -> Assert.Equal([ 4; 6; 8 ], xs)
+    | _ -> failwith "Expected ValidCtx with transformed values"
+
+// Tests for validateEach operator
+[<Property>]
+let ``VCtxBuilder.ValidateEach: Validates each element`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+
+    let fn i a =
+        if a < 2 then
+            DisputedCtx([ "too small" ], Map.empty, Global a)
+        else
+            ValidCtx(Global(a * 2))
+
+    let result = VCtxBuilder().ValidateEach(input, fn)
+
+    match result with
+    | DisputedCtx(_, lfs, Global xs) ->
+        Assert.True(Map.containsKey [ mkName "[0]" |> Option.get ] lfs)
+        Assert.Equal<int list>([ 1; 4; 6 ], Seq.toList xs) // Element 0 keeps original value 1
+    | _ -> failwith "Expected DisputedCtx with partial values"
+
+[<Property>]
+let ``VCtxBuilder.ValidateEach: Accumulates all failures`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+
+    let fn i a =
+        if a < 3 then
+            DisputedCtx([ "too small" ], Map.empty, Global a)
+        else
+            ValidCtx(Global(a * 2))
+
+    let result = VCtxBuilder().ValidateEach(input, fn)
+
+    match result with
+    | DisputedCtx(_, lfs, Global xs) ->
+        Assert.Equal(2, Map.count lfs) // Two elements failed
+        Assert.Equal<int list>([ 1; 2; 6 ], Seq.toList xs) // Elements 0,1 keep originals, element 2 transformed
+    | _ -> failwith "Expected DisputedCtx with multiple failures"
+
+// Tests for disputeAnyWith operator
+[<Property>]
+let ``VCtxBuilder.DisputeAnyWith: Disputes if any element fails`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+    let fn i a = if a = 2 then Some "found 2" else None
+    let result = VCtxBuilder().DisputeAnyWith(input, fn)
+
+    match result with
+    | DisputedCtx(_, lfs, Global xs) ->
+        Assert.True(Map.containsKey [ mkName "[1]" |> Option.get ] lfs) // Failure on element at index 1
+        Assert.Equal<int list>([ 1; 2; 3 ], Seq.toList xs) // All elements preserved
+    | _ -> failwith "Expected DisputedCtx"
+
+[<Property>]
+let ``VCtxBuilder.DisputeAnyWith: Succeeds if no element fails`` () =
+    let input = ValidCtx(Global [ 1; 3; 5 ])
+    let fn i a = if a = 2 then Some "found 2" else None
+    let result = VCtxBuilder().DisputeAnyWith(input, fn)
+
+    match result with
+    | ValidCtx(Global xs) -> Assert.Equal<int list>([ 1; 3; 5 ], Seq.toList xs)
+    | _ -> failwith "Expected ValidCtx"
+
+// Tests for disputeAnyWithMany operator
+[<Property>]
+let ``VCtxBuilder.DisputeAnyWithMany: Disputes if any element fails`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+    let fn i a = if a = 2 then [ "found 2" ] else []
+    let result = VCtxBuilder().DisputeAnyWithMany(input, fn)
+
+    match result with
+    | DisputedCtx(_, lfs, Global xs) ->
+        Assert.True(Map.containsKey [ mkName "[1]" |> Option.get ] lfs) // Failure on element at index 1
+        Assert.Equal<int list>([ 1; 2; 3 ], Seq.toList xs) // All elements preserved
+    | _ -> failwith "Expected DisputedCtx"
+
+[<Property>]
+let ``VCtxBuilder.DisputeAnyWithMany: Succeeds if no element fails`` () =
+    let input = ValidCtx(Global [ 1; 3; 5 ])
+    let fn i a = if a = 2 then [ "found 2" ] else []
+    let result = VCtxBuilder().DisputeAnyWithMany(input, fn)
+
+    match result with
+    | ValidCtx(Global xs) -> Assert.Equal<int list>([ 1; 3; 5 ], Seq.toList xs)
+    | _ -> failwith "Expected ValidCtx"
+
+// Tests for disputeAnyWithFact operator
+[<Property>]
+let ``VCtxBuilder.DisputeAnyWithFact: Disputes if any element fails check`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+    let fn i a = a <> 2 // Returns False (fails check) when element equals 2
+    let result = VCtxBuilder().DisputeAnyWithFact(input, "found 2", fn)
+
+    match result with
+    | DisputedCtx(_, lfs, Global xs) ->
+        Assert.True(Map.containsKey [ mkName "[1]" |> Option.get ] lfs) // Failure on element at index 1
+        Assert.Equal<int list>([ 1; 2; 3 ], Seq.toList xs) // All elements preserved
+    | _ -> failwith "Expected DisputedCtx"
+
+[<Property>]
+let ``VCtxBuilder.DisputeAnyWithFact: Succeeds if all elements pass check`` () =
+    let input = ValidCtx(Global [ 1; 3; 5 ])
+    let fn i a = a <> 2 // Returns True (passes) for all elements (none equal 2)
+    let result = VCtxBuilder().DisputeAnyWithFact(input, "found 2", fn)
+
+    match result with
+    | ValidCtx(Global xs) -> Assert.Equal([ 1; 3; 5 ], xs)
+    | _ -> failwith "Expected ValidCtx"
+
+// Tests for disputeAllWith operator
+[<Property>]
+let ``VCtxBuilder.DisputeAllWith: Disputes if all elements fail`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+    let fn i a = if a > 0 then Some "all fail" else None // Returns Some for all elements > 0 (all pass)
+    let result = VCtxBuilder().DisputeAllWith(input, fn)
+
+    match result with
+    | DisputedCtx(gfs, _, _) -> Assert.Equal<string list>([ "all fail" ], gfs)
+    | _ -> failwith "Expected DisputedCtx"
+
+[<Property>]
+let ``VCtxBuilder.DisputeAllWith: Succeeds if not all elements fail`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+
+    let fn i a =
+        if a < 2 then Some "too small" else None
+
+    let result = VCtxBuilder().DisputeAllWith(input, fn)
+
+    match result with
+    | ValidCtx(Global xs) -> Assert.Equal<int list>([ 1; 2; 3 ], xs)
+    | _ -> failwith "Expected ValidCtx"
+
+// Tests for disputeAllWithMany operator (includes bug fix verification)
+[<Property>]
+let ``VCtxBuilder.DisputeAllWithMany: Disputes if all elements fail`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+    let fn i a = if a > 0 then [ "all fail" ] else [] // Returns list for all elements > 0 (all pass)
+    let result = VCtxBuilder().DisputeAllWithMany(input, fn)
+
+    match result with
+    | DisputedCtx(gfs, _, _) -> Assert.Equal<string list>([ "all fail" ], gfs)
+    | _ -> failwith "Expected DisputedCtx"
+
+[<Property>]
+let ``VCtxBuilder.DisputeAllWithMany: Succeeds if not all elements fail`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+    let fn i a = if a < 2 then [ "too small" ] else []
+    let result = VCtxBuilder().DisputeAllWithMany(input, fn)
+
+    match result with
+    | ValidCtx(Global xs) -> Assert.Equal<int list>([ 1; 2; 3 ], xs)
+    | _ -> failwith "Expected ValidCtx when not all elements fail"
+
+[<Property>]
+let ``VCtxBuilder.DisputeAllWithMany: Produces valid DisputedCtx with failures`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+    let fn i a = if a > 0 then [ "fail" ] else [] // All elements > 0, so all fail
+    let result = VCtxBuilder().DisputeAllWithMany(input, fn)
+
+    match result with
+    | DisputedCtx(gfs, lfs, _) ->
+        Assert.False(List.isEmpty gfs) // Should have global failure since ALL elements failed
+        Assert.True(Map.toList lfs |> List.isEmpty) // No field-level failures when all fail
+    | _ -> failwith "Expected valid DisputedCtx state"
+
+[<Property>]
+let ``VCtxBuilder.DisputeAllWithFact: Disputes if all elements fail check`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+    let fn i a = a < 1 // Returns False (fails check) for all elements (all >= 1)
+    let result = VCtxBuilder().DisputeAllWithFact(input, "all fail", fn)
+
+    match result with
+    | DisputedCtx(gfs, _, _) -> Assert.Equal<string list>([ "all fail" ], gfs)
+    | _ -> failwith "Expected DisputedCtx"
+
+[<Property>]
+let ``VCtxBuilder.DisputeAllWithFact: Succeeds if not all elements fail check`` () =
+    let input = ValidCtx(Global [ 1; 2; 3 ])
+    let fn i a = a < 2
+    let result = VCtxBuilder().DisputeAllWithFact(input, "too small", fn)
+
+    match result with
+    | ValidCtx(Global xs) -> Assert.Equal<int list>([ 1; 2; 3 ], xs)
+    | _ -> failwith "Expected ValidCtx"
+
+[<Property>]
+let ``VCtxBuilder.RefuteWithProof: When element validation fails, the valid context becomes a refuted context``
+    (NegativeInt i)
+    =
     let field1 = mkName "field1" |> Option.get
     let a = Element(1, i)
     let ctx = ValidCtx a
