@@ -3,18 +3,21 @@ module FSharp.Data.Validation.Types
 
 open System
 
-type Name = private { _value: string } with
+type Name =
+    private
+        { _value: string }
+
     member public this.Value = this._value
 
-let mkName (n:string): Name option =
+let mkName (n: string) : Name option =
     if String.IsNullOrEmpty(n.Trim()) then
         None
     else
-        Some { _value = n.Trim()}
+        Some { _value = n.Trim() }
 
 type FailureMap<'F> = Map<Name list, 'F list>
 
-type InvalidProofException<'F>(msg, gfs : 'F list, lfs : FailureMap<'F>) =
+type InvalidProofException<'F>(msg, gfs: 'F list, lfs: FailureMap<'F>) =
     inherit Exception(msg)
     member this.GlobalFailures = gfs
     member this.FieldFailures = lfs

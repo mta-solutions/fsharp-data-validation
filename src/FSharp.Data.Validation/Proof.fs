@@ -8,95 +8,121 @@ open System.Text.Json.Serialization
 type ValidationFailures<'F> =
     { Failures: 'F list
       Fields: FailureMap<'F> }
+
 and ValidationFailuresConverter<'F>() =
     inherit JsonConverter<ValidationFailures<'F>>()
-        member private this.mkName(ns:Name list) =
-            let rec mk (ns:Name list) (acc:string) =
-                match ns with
-                | [] -> acc
-                | n::ns' -> mk ns' (sprintf "%s.%s" acc (this.toCamelCase n.Value))
-            match ns with
-            | []        -> String.Empty
-            | n::ns'    -> mk ns' (this.toCamelCase n.Value)
-        member private this.toCamelCase (str:string) =
-            match str.Length with
-            | 0 -> str
-            | 1 -> str.ToLower()
-            | _ -> sprintf "%c%s" (Char.ToLowerInvariant(str[0])) (str.Substring(1))
-        override this.Read(reader: byref<Utf8JsonReader>, typ, opts) =
-            JsonSerializer.Deserialize<ValidationFailures<'F>>(&reader, opts)
-        override this.Write(writer, fs, opts) =
-            writer.WriteStartObject()
 
-            writer.WriteStartArray("failures")
-            for f in fs.Failures do
+    member private this.mkName(ns: Name list) =
+        let rec mk (ns: Name list) (acc: string) =
+            match ns with
+            | [] -> acc
+            | n :: ns' -> mk ns' (sprintf "%s.%s" acc (this.toCamelCase n.Value))
+
+        match ns with
+        | [] -> String.Empty
+        | n :: ns' -> mk ns' (this.toCamelCase n.Value)
+
+    member private this.toCamelCase(str: string) =
+        match str.Length with
+        | 0 -> str
+        | 1 -> str.ToLower()
+        | _ -> sprintf "%c%s" (Char.ToLowerInvariant(str[0])) (str.Substring(1))
+
+    override this.Read(reader: byref<Utf8JsonReader>, typ, opts) =
+        JsonSerializer.Deserialize<ValidationFailures<'F>>(&reader, opts)
+
+    override this.Write(writer, fs, opts) =
+        writer.WriteStartObject()
+
+        writer.WriteStartArray("failures")
+
+        for f in fs.Failures do
+            writer.WriteStringValue(f.ToString())
+
+        writer.WriteEndArray()
+
+        writer.WriteStartObject("fields")
+
+        for (ns, fs) in Map.toSeq (fs.Fields) do
+            writer.WriteStartArray(this.mkName ns)
+
+            for f in fs do
                 writer.WriteStringValue(f.ToString())
+
             writer.WriteEndArray()
 
-            writer.WriteStartObject("fields")
-            for (ns,fs) in Map.toSeq(fs.Fields) do
-                writer.WriteStartArray(this.mkName ns)
-                for f in fs do
-                    writer.WriteStringValue(f.ToString())
-                writer.WriteEndArray()
-            writer.WriteEndObject()
+        writer.WriteEndObject()
 
-            writer.WriteEndObject()
-            writer.Flush()
+        writer.WriteEndObject()
+        writer.Flush()
+
 and ValidationFailuresConverterFactory() =
     inherit JsonConverterFactory()
-        override this.CanConvert(typ) =
-            typ.GetGenericTypeDefinition() = typedefof<ValidationFailures<_>>
-        override this.CreateConverter(typ, opts) =
-            let tArgs = typ.GetGenericArguments()
-            let t = typedefof<ValidationFailuresConverter<_>>.MakeGenericType(tArgs)
-            Activator.CreateInstance(t) :?> JsonConverter
+
+    override this.CanConvert(typ) =
+        typ.GetGenericTypeDefinition() = typedefof<ValidationFailures<_>>
+
+    override this.CreateConverter(typ, opts) =
+        let tArgs = typ.GetGenericArguments()
+        let t = typedefof<ValidationFailuresConverter<_>>.MakeGenericType(tArgs)
+        Activator.CreateInstance(t) :?> JsonConverter
 
 [<JsonConverter(typeof<ProofConverterFactory>)>]
 type Proof<'F, 'A> =
+    /// Represents a successful validation with the valid value.
     | Valid of 'A
+    /// Represents a failed validation with global and field-specific failures.
     | Invalid of 'F list * FailureMap<'F>
+
 and ProofConverter<'F, 'A>() =
     inherit JsonConverter<Proof<'F, 'A>>()
-        member private this.mkName(ns:Name list) =
-            let rec mk (ns:Name list) (acc:string) =
-                match ns with
-                | [] -> acc
-                | n::ns' -> mk ns' (sprintf "%s.%s" acc (this.toCamelCase n.Value))
+
+    member private this.mkName(ns: Name list) =
+        let rec mk (ns: Name list) (acc: string) =
             match ns with
-            | []        -> String.Empty
-            | n::ns'    -> mk ns' (this.toCamelCase n.Value)
-        member private this.toCamelCase (str:string) =
-            match str.Length with
-            | 0 -> str
-            | 1 -> str.ToLower()
-            | _ -> sprintf "%c%s" (Char.ToLowerInvariant(str[0])) (str.Substring(1))
-        override this.Read(reader: byref<Utf8JsonReader>, typ, opts) =
-            JsonSerializer.Deserialize<Proof<'F, 'A>>(&reader, opts)
-        override this.Write(writer, proof, opts) =
-            match proof with
-            | Valid a           -> JsonSerializer.Serialize(writer, a, opts)
-            | Invalid (gfs,lfs) -> JsonSerializer.Serialize(writer, { Failures = gfs; Fields = lfs }, opts)
+            | [] -> acc
+            | n :: ns' -> mk ns' (sprintf "%s.%s" acc (this.toCamelCase n.Value))
+
+        match ns with
+        | [] -> String.Empty
+        | n :: ns' -> mk ns' (this.toCamelCase n.Value)
+
+    member private this.toCamelCase(str: string) =
+        match str.Length with
+        | 0 -> str
+        | 1 -> str.ToLower()
+        | _ -> sprintf "%c%s" (Char.ToLowerInvariant(str[0])) (str.Substring(1))
+
+    override this.Read(reader: byref<Utf8JsonReader>, typ, opts) =
+        JsonSerializer.Deserialize<Proof<'F, 'A>>(&reader, opts)
+
+    override this.Write(writer, proof, opts) =
+        match proof with
+        | Valid a -> JsonSerializer.Serialize(writer, a, opts)
+        | Invalid(gfs, lfs) -> JsonSerializer.Serialize(writer, { Failures = gfs; Fields = lfs }, opts)
+
 and ProofConverterFactory() =
     inherit JsonConverterFactory()
-        override this.CanConvert(typ) =
-            typ.GetGenericTypeDefinition() = typedefof<Proof<_,_>>
-        override this.CreateConverter(typ, opts) =
-            let tArgs = typ.GetGenericArguments()
-            let t = typedefof<ProofConverter<_,_>>.MakeGenericType(tArgs)
-            Activator.CreateInstance(t) :?> JsonConverter
+
+    override this.CanConvert(typ) =
+        typ.GetGenericTypeDefinition() = typedefof<Proof<_, _>>
+
+    override this.CreateConverter(typ, opts) =
+        let tArgs = typ.GetGenericArguments()
+        let t = typedefof<ProofConverter<_, _>>.MakeGenericType(tArgs)
+        Activator.CreateInstance(t) :?> JsonConverter
 
 module Proof =
     /// Applies function to the proof value
     let map fn p =
         match p with
-        | Invalid (gfs, lfs)    -> Invalid (gfs, lfs)
-        | Valid a               -> Valid (fn a)
+        | Invalid(gfs, lfs) -> Invalid(gfs, lfs)
+        | Valid a -> Valid(fn a)
 
     /// Applies function to failure type
     let mapInvalid fn p =
         match p with
-        | Invalid (gfs, lfs) -> Invalid (List.map fn gfs, Map.map (fun _ s -> List.map fn s) lfs)
+        | Invalid(gfs, lfs) -> Invalid(List.map fn gfs, Map.map (fun _ s -> List.map fn s) lfs)
         | Valid a -> Valid a
 
     /// Combines two proofs using the provided function
@@ -159,12 +185,15 @@ module Proof =
             match second with
             | Valid _ -> second
             | Invalid _ -> first
+
+    /// Extracts the validation failures from a Proof, if any.
     let toValidationFailures p =
         match p with
-        | Valid a           -> None
-        | Invalid (gfs,lfs) -> Some { Failures = gfs; Fields= lfs; }
+        | Valid a -> None
+        | Invalid(gfs, lfs) -> Some { Failures = gfs; Fields = lfs }
 
+    /// Converts a Proof to a Result, where Valid becomes Ok and Invalid becomes Error with ValidationFailures.
     let toResult p =
         match p with
-        | Valid a           -> Ok a
-        | Invalid (gfs,lfs) -> Error { Failures = gfs; Fields= lfs; }
+        | Valid a -> Ok a
+        | Invalid(gfs, lfs) -> Error { Failures = gfs; Fields = lfs }
