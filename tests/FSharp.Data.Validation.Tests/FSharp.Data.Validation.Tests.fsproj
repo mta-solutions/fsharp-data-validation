@@ -12,8 +12,13 @@
     <Compile Include="Tests\Proof.fs" />
     <Compile Include="Tests\ValueCtx.fs" />
     <Compile Include="Tests\VCtx.fs" />
-    <Compile Include="Tests\Library.fs" />
     <Compile Include="Tests\Fixtures.fs" />
+    <Compile Include="Tests\Validators\Core.fs" />
+    <Compile Include="Tests\Validators\Collection.fs" />
+    <Compile Include="Tests\Validators\Numeric.fs" />
+    <Compile Include="Tests\Validators\Required.fs" />
+    <Compile Include="Tests\Validators\String.fs" />
+    <Compile Include="Tests\Validators\Temporal.fs" />
     <Compile Include="Program.fs" />
     <None Include="paket.references" />
   </ItemGroup>
