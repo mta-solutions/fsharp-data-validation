@@ -296,9 +296,56 @@ type VCtxBuilder() =
     /// Performs a validation on each member of a list using a given function and handles the result.
     /// If the result of any element is `Error f`, a validation failure is added to the result and validation ends.
     /// If the result of all elements are `Ok b`, validation continues with the new value.
-    [<CustomOperation("refuteEachWithProof", MaintainsVariableSpace=true)>]
-    member this.RefuteEachWithProof(c:VCtx<'F, ValueCtx<#seq<'A>>>, fn:'A -> Proof<'F, 'B>): VCtx<'F, ValueCtx<seq<'B>>> =
-        this.RefuteEachWithProof(c, fun _ a -> fn a)
+    [<CustomOperation("refuteEachWithProof", MaintainsVariableSpace = true)>]
+    member this.RefuteEachWithProof
+        (c: VCtx<'F, ValueCtx<#seq<'A>>>, fn: 'A -> Proof<'F, 'B>)
+        : VCtx<'F, ValueCtx<seq<'B>>> =
+        this.RefuteEachWithProof(c, (fun _ a -> fn a))
+
+    /// Convenience alias: Performs a validation using a given proof-returning function with failure mapping.
+    /// If the result is 'Invalid', maps the failures with the given function and adds them to the result, ending validation.
+    /// If the result is `Valid b`, validation continues with the new value.
+    [<CustomOperation("refuteWithValidation", MaintainsVariableSpaceUsingBind = true)>]
+    member this.RefuteWithValidation
+        (c: VCtx<'F, ValueCtx<'A>>, fn: 'A -> Proof<'F2, 'B>, mapFailure: 'F2 -> 'F)
+        : VCtx<'F, ValueCtx<'B>> =
+        this.Bind(
+            c,
+            fun v ->
+                let proof = fn (ValueCtx.getValue v)
+                let mappedProof = Proof.mapInvalid mapFailure proof
+
+                match v with
+                | Element(i, _) ->
+                    match mappedProof with
+                    | Invalid(gfs, lfs) -> RefutedCtx([], Map.add [ VCtx.mkElementName i ] gfs lfs)
+                    | Valid b -> this.Return(Element(i, b))
+                | Field(n, _) ->
+                    match mappedProof with
+                    | Invalid(gfs, lfs) -> RefutedCtx([], Map.add [ n ] gfs lfs)
+                    | Valid b -> this.Return(Field(n, b))
+                | Global _ ->
+                    match mappedProof with
+                    | Invalid(gfs, lfs) -> RefutedCtx(gfs, lfs)
+                    | Valid b -> this.Return(Global b)
+        )
+
+    /// Convenience alias: Performs a validation on each member using a given proof-returning function with failure mapping.
+    /// If any result is 'Invalid', maps the failures and adds them to the result, ending validation.
+    /// If all results are `Valid b`, validation continues with the new values.
+    [<CustomOperation("refuteEachWithValidation", MaintainsVariableSpace = true)>]
+    member this.RefuteEachWithValidation
+        (c: VCtx<'F, ValueCtx<#seq<'A>>>, fn: 'A -> Proof<'F2, 'B>, mapFailure: 'F2 -> 'F)
+        : VCtx<'F, ValueCtx<seq<'B>>> =
+        this.ValidateEach(
+            c,
+            fun i a ->
+                let proof = fn a |> Proof.mapInvalid mapFailure
+
+                match proof with
+                | Valid b -> ValidCtx(Global b)
+                | Invalid(gfs, lfs) -> RefutedCtx(gfs, lfs)
+        )
 
     // Adds a validation failure to the result and continues validation.
     [<CustomOperation("dispute", MaintainsVariableSpace=true)>]
