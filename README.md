@@ -1240,7 +1240,6 @@ validation {
 
 #### `refuteEachWithProof`
 
-
 Similar to `refuteWithProof` but used for validating list like types.
 
 ```fsharp
@@ -1357,7 +1356,7 @@ validation {
         then Some InvalidString 
         else None
     )
-    // value is of type `string` here
+    // value is still of type `string option` here (dispute does not transform)
     ...
 }
 ```
@@ -1514,8 +1513,9 @@ There is an overload to the operator that takes a function with the signature `i
 
 #### `validateEach`
 
-This function accepts a function with a signature of `'A -> VCtx<'F, 'B>` that validates each element.
-The result is created from the `validation` computation expression.
+This function accepts a function with a signature of `'A -> VCtx<'F, ValueCtx<'B>>` that validates each element.
+The function should be contained in the `validation` computation expression, which returns the appropriate `VCtx` type wrapping a `ValueCtx`.
+The result accumulates all validation failures across elements while preserving valid transformed values.
 
 ```fsharp
 validation {
@@ -1525,6 +1525,8 @@ validation {
     ...
 }
 ```
+
+There is also an overload that takes a function with the signature `int -> 'A -> VCtx<'F, ValueCtx<'B>>` where the first parameter is the index of the element.
 
 ## Validation Helpers
 
