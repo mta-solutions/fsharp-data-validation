@@ -953,13 +953,9 @@ module Example.Types
                 qed
             }
 
-            let! _ = validation {
-                withValue (name, username)
-                disputeWithFact NameMatchesUsername (fun (n, u) ->
-                    match n with
-                    | Some nameVal -> Name.unwrap nameVal <> Username.unwrap u
-                    | None -> true
-                )
+            and! _ = validation {
+                withValue vm
+                disputeWithFact NameMatchesUsername (fun a -> a.Name <> a.Username)
                 qed
             }
 
@@ -967,8 +963,11 @@ module Example.Types
         } |> fromVCtx
 ```
 
-We need to include this in the `let!` chain but we can ignore the result.
+We need to include this in the `and!` chain but we can ignore the result.
 Our complex type is validated.
+
+> **Note:** The example above compares the raw view model values before any validation occurs. If you need to perform cross-field checks on values that have already been individually validated (e.g., comparing two validated fields), see the [Cross-Field Validation](#cross-field-validation) section.
+
 However, as far as complex types go, ours is fairly simple
 Let's try validating a type nested inside another type.
 
