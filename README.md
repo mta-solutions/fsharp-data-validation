@@ -102,7 +102,7 @@ dotnet add package FSharp.Data.Validation.Async
 
 **Requirements:**
 - .NET 8.0 or higher
-- F# 6.0 or higher
+- F# 8.0 or higher
 
 **Resources:**
 - [Getting Started guide](samples/GettingStarted/) - Step-by-step tutorial project
@@ -131,12 +131,16 @@ module Email =
         validation {
             withValue input
             refuteWith (isRequired Required)
-            disputeWithFact InvalidFormat (fun s ->
-                s.Contains("@") && s.Contains(".")
+            refuteWith (fun s ->
+                if not (s.Contains("@") && s.Contains(".")) then
+                    Error InvalidFormat
+                else
+                    Ok s
             )
             disputeWithFact DomainNotAllowed (fun s ->
-                let domain = s.Split('@').[1]
-                domain <> "tempmail.com"
+                let parts = s.Split('@')
+                if parts.Length < 2 then false
+                else parts.[1] <> "tempmail.com"
             )
             qed Email
         } |> fromVCtx
@@ -525,7 +529,7 @@ That's why we need both `dispute*` and `refute*` operations.
 ### Back to the Example
 
 Now that we understand the difference between `dispute*` and `refute*`, let's break our example down.
-The `refuteWith` operation takes a function with the signature `'A -> Result<'F, 'B>`.
+The `refuteWith` operation takes a function with the signature `'A -> Result<'B, 'F>`.
 This function checks if a value is suitable for transformation from `'A` to `'B`.
 If so, it performs the transformation and returns it.
 Otherwise, it returns the failure.
@@ -792,22 +796,22 @@ module Example.Types
     let makeNewUser(vm:NewUserVM) =  
         validation {
             let! name = validation {
-                withField (fun () -> this.Name)
+                withField (fun () -> vm.Name)
                 // validate name
                 qed
             }
             and! username = validation {
-                withField (fun () -> this.Username)
+                withField (fun () -> vm.Username)
                 // validate username
                 qed
             }
             and! password = validation {
-                withField (fun () -> this.Password)
+                withField (fun () -> vm.Password)
                 // validate password
                 qed
             }
             and! emailAddress = validation {
-                withField (fun () -> this.EmailAddress)
+                withField (fun () -> vm.EmailAddress)
                 // validate email address
                 qed
             }
@@ -844,24 +848,24 @@ type NewUserFailure =
     let makeNewUser(vm:NewUserVM) = 
         validation {
             let! name = validation {
-                withField (fun () -> this.Name)
+                withField (fun () -> vm.Name)
                 // how do we validate an optional field?
                 qed
             }
             and! username = validation {
-                withField (fun () -> this.Username)
+                withField (fun () -> vm.Username)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
                 qed
             }
             and! password = validation {
-                withField (fun () -> this.Password)
+                withField (fun () -> vm.Password)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
                 qed
             }
             and! emailAddress = validation {
-                withField (fun () -> this.EmailAddress)
+                withField (fun () -> vm.EmailAddress)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
                 qed
@@ -895,7 +899,7 @@ Let's see it in action.
 
 ```fsharp
             let! name = validation {
-                withField (fun () -> this.Name)
+                withField (fun () -> vm.Name)
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
@@ -923,36 +927,42 @@ module Example.Types
     let makeNewUser(vm:NewUserVM) = 
         validation {
             let! name = validation {
-                withField (fun () -> this.Name)
+                withField (fun () -> vm.Name)
                 optional (fun v -> validation {
                     withValue v
-                    refuteWithProof (mkName >> Proof.mapInvalid InvalidEmailAddress)
+                    refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
                 })
                 qed
             }
             and! username = validation {
-                withField (fun () -> this.Username)
+                withField (fun () -> vm.Username)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
                 qed
             }
             and! password = validation {
-                withField (fun () -> this.Password)
+                withField (fun () -> vm.Password)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
                 qed
             }
             and! emailAddress = validation {
-                withField (fun () -> this.EmailAddress)
+                withField (fun () -> vm.EmailAddress)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
                 qed
             }
-            and! _ = validation {
-                withValue this
-                disputeWithFact NameMatchesUsername (fun a -> a.Name = a.Username |> not)
+
+            let! _ = validation {
+                withValue (name, username)
+                disputeWithFact NameMatchesUsername (fun (n, u) ->
+                    match n with
+                    | Some nameVal -> Name.unwrap nameVal <> Username.unwrap u
+                    | None -> true
+                )
                 qed
             }
+
             return { NewUser.name = name; username = username; password = password; emailAddress = emailAddress; }
         } |> fromVCtx
 ```
@@ -1062,7 +1072,7 @@ module NewUserVM =
         validation {
             // ... nothing new here
             and! contact = validation {
-                withField (fun () -> this.Contact)
+                withField (fun () -> vm.Contact)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
                 qed
@@ -1122,13 +1132,13 @@ module NewUserVM =
         validation {
             // ... nothing new here
             and! preferredContact = validation {
-                withField (fun () -> this.PreferredContact)
+                withField (fun () -> vm.PreferredContact)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
                 qed
             }
             and! additionalContacts = validation {
-                withField (fun () -> this.AdditionalContacts)
+                withField (fun () -> vm.AdditionalContacts)
                 refuteEachWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
                 qed List.ofSeq
             }
@@ -1747,11 +1757,20 @@ let validateRegistration (vm: RegistrationVM) : Proof<RegistrationFailure, Regis
                 qed
             }
 
-        // Cross-field validation at parent level
-        if vm.Password <> vm.ConfirmPassword then
-            dispute PasswordMismatch
+        and! confirmPassword =
+            validation {
+                withField (fun () -> vm.ConfirmPassword)
+                refuteWith (isRequired PasswordMismatch)
+                qed
+            }
 
-        return { Email = email; Password = password; Username = username }
+        let! _ = validation {
+            withValue (password, confirmPassword)
+            disputeWithFact PasswordMismatch (fun (p, cp) -> Password.unwrap p = cp)
+            qed
+        }
+
+        return (email, password, username, confirmPassword)
     } |> fromVCtx
 ```
 
@@ -1813,7 +1832,7 @@ let validateOrder (items: OrderItemVM list) : Proof<OrderFailure, OrderItem list
                 qed
             }
         )
-        qed
+        qed List.ofSeq
     } |> fromVCtx
 
 // Field failures will include indices: "items.[0].Name", "items.[2].Price"
@@ -1883,12 +1902,12 @@ type UserFailure =
 let checkEmailExistsAsync (email: string) : Async<bool> =
     async {
         // Database query
-        return! DbContext.users.AnyAsync(fun u -> u.Email = email)
+        return! DbContext.users.AnyAsync(fun u -> u.Email = email) |> Async.AwaitTask
     }
 
 let checkUsernameTakenAsync (username: string) : Async<bool> =
     async {
-        return! DbContext.users.AnyAsync(fun u -> u.Username = username)
+        return! DbContext.users.AnyAsync(fun u -> u.Username = username) |> Async.AwaitTask
     }
 
 // Sync validation first, then async
@@ -1919,7 +1938,7 @@ let validateUserAsync (vm: UserVM) : Async<Proof<UserFailure, User>> =
             syncValidation
             |> VCtx.bindToAsync (fun (email, username) ->
                 async {
-                    // Run async validations in parallel
+                    // Run async validations asynchronously as possible
                     let! emailExists = checkEmailExistsAsync email
                     let! usernameTaken = checkUsernameTakenAsync username
 
@@ -2001,7 +2020,10 @@ let validateRegistration (form: RegisterVM)
     let un = validateUsername form.Username |> Proof.mapInvalid Username
     let em = validateEmail form.Email |> Proof.mapInvalid Email
     let pw = validatePassword form.Password |> Proof.mapInvalid Password
-    Proof.combine (Proof.combine un em) pw
+    Proof.combine
+        (fun ((u, e), p) -> createRegisteredUser u e p)
+        (Proof.combine (fun u e -> (u, e)) un em)
+        pw
 ```
 
 ### Conditional Field Validation
@@ -2054,7 +2076,7 @@ type OrderVM =
 
     member this.Validate() =
         validation {
-            let validateItem (idx, item: ItemVM) =
+            let validateItem idx (item: ItemVM) : VCtx<ItemFailure, ValueCtx<OrderItem>> =
                 validation {
                     let! name =
                         validation {
@@ -2069,7 +2091,7 @@ type OrderVM =
                             qed id
                         }
                     return { Name = name; Price = price }
-                } |> fromVCtx
+                }
 
             withValue this.Items
             validateEach validateItem
@@ -2127,8 +2149,8 @@ type PasswordChangeVM =
                     withField (fun () -> this.NewPassword)
                     refuteWith (isRequired Required)
                     refuteWith (fun p ->
-                        if p = oldPwd then Some NewPasswordSameAsOld
-                        else None
+                        if p = oldPwd then Error NewPasswordSameAsOld
+                        else Ok p
                     )
                     qed id
                 }
@@ -2140,9 +2162,14 @@ type PasswordChangeVM =
                     qed id
                 }
 
-            // Cross-field validation
-            if newPwd <> confirmPwd then
-                disputeWithFact ConfirmationDoesNotMatch false
+            and! _ =
+                validation {
+                    // Cross-field validation: compare old and new passwords
+                    withValue (oldPwd, newPwd, confirmPwd)
+                    disputeWithFact NewPasswordSameAsOld (fun (old, new_, _) -> new_ <> old)
+                    disputeWithFact ConfirmationDoesNotMatch (fun (_, new_, confirm) -> new_ = confirm)
+                    qed
+                }
 
             return { OldPassword = oldPwd; NewPassword = newPwd }
         } |> fromVCtx
@@ -2163,11 +2190,19 @@ module ValidatedEmail =
     let make (str: string) : Proof<ValidationFailure, ValidatedEmail> =
         validation {
             withValue str
-            disputeWithFact InvalidFormat (fun s -> Regex.IsMatch(s, ".+@.+"))
+            refuteWith (fun s ->
+                if not (Regex.IsMatch(s, ".+@.+")) then
+                    Error InvalidFormat
+                else
+                    Ok s
+            )
             disputeWithFact DomainNotAllowed (fun s ->
-                let domain = s.Split('@').[1]
-                ["gmail.com"; "yahoo.com"; "outlook.com"]
-                |> List.contains domain |> not
+                let parts = s.Split('@')
+                if parts.Length < 2 then false
+                else
+                    let domain = parts.[1]
+                    ["gmail.com"; "yahoo.com"; "outlook.com"]
+                    |> List.contains domain |> not
             )
             qed ValidatedEmail
         } |> fromVCtx

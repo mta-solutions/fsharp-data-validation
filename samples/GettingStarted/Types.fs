@@ -7,7 +7,7 @@ open System.Text.RegularExpressions
 
 type Name = private Name of string
 
-type NameFailure = 
+type NameFailure =
     | Empty
 
 module Name =
@@ -44,7 +44,7 @@ type PasswordFailure =
     | MinLength
     | NeedsTwoOfLetterNumberSpecial
 
-module Password = 
+module Password =
     let private hasLetter (str:string) = str.Any(fun c -> Char.IsLetter(c))
     let private hasNumber (str:string) = str.Any(fun c -> Char.IsDigit(c))
     let private hasSpecial (str:string) = str.Any(fun c -> Char.IsLetterOrDigit(c) |> not)
@@ -71,7 +71,7 @@ type EmailAddress = private {
 } with
     member public this.Username = this.username
     member public this.Domain = this.domain
-    
+
 type EmailAddressFailure =
     | InvalidDomain
     | InvalidUsername
@@ -106,12 +106,12 @@ type PhoneNumber = private {
     member public this.AreaCode = this.areaCode
     member public this.Exchange = this.exchange
     member public this.LineNumber = this.lineNumber
-    
+
 type PhoneNumberFailure =
     | Empty
     | MissingAreaCode
-    | ToShort
-    | ToLong
+    | TooShort
+    | TooLong
 
 module PhoneNumber =
     let make (str:string) =
@@ -121,11 +121,11 @@ module PhoneNumber =
             withValue clean
             disputeWithFact Empty (isNotNull)
             refuteWith (fun s -> if s.Length = 7 then Error MissingAreaCode else Ok s)
-            disputeWithFact ToShort (minLength 10)
-            disputeWithFact ToLong (minLength 11)
+            disputeWithFact TooShort (minLength 10)
+            disputeWithFact TooLong (maxLength 11)
             qed (fun s ->
                 let s' = if s.Length = 10 then s else s.Substring(1)
-                { areaCode = s.Substring(0,3); exchange = s.Substring(3,3); lineNumber = s.Substring(6) }
+                { areaCode = s'.Substring(0,3); exchange = s'.Substring(3,3); lineNumber = s'.Substring(6) }
             )
         } |> fromVCtx
 
@@ -136,8 +136,8 @@ type Contact =
     | Call of PhoneNumber
     | Text of PhoneNumber
     | Email of EmailAddress
-      
-type ContactFailure = 
+
+type ContactFailure =
     | MissingContactType
     | MissingContactDetails
     | InvalidPhoneNumber of PhoneNumberFailure
@@ -186,12 +186,12 @@ module ContactVM =
         } |> fromVCtx
 
 // The validated new user type (the model)
-type NewUser = private { 
+type NewUser = private {
     name: Name option
     username: Username
     password: Password
     preferredContact: Contact
-    additionalContacts: Contact list 
+    additionalContacts: Contact list
 } with
     member public this.Name = this.name
     member public this.Username = this.username
@@ -199,7 +199,7 @@ type NewUser = private {
     member public this.PreferredContact = this.preferredContact
     member public this.AdditionalContacts = this.additionalContacts
 
-type NewUserFailure = 
+type NewUserFailure =
     | RequiredField
     | NameMatchesUsername
     | InvalidName of NameFailure
@@ -216,7 +216,7 @@ type NewUserVM =
       AdditionalContacts: ContactVM list }
 
 module NewUserVM =
-    let makeNewUser (vm: NewUserVM) = 
+    let makeNewUser (vm: NewUserVM) =
         validation {
             let! name = validation {
                 withField (fun () -> vm.Name)
