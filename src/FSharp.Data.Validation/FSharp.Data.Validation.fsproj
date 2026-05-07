@@ -14,7 +14,11 @@
     <Compile Include="Utilities.fs" />
     <Compile Include="Proof.fs" />
     <Compile Include="VCtx.fs" />
-    <Compile Include="Library.fs" />
+    <Compile Include="Validators\Core.fs" />
+    <Compile Include="Validators\Required.fs" />
+    <Compile Include="Validators\String.fs" />
+    <Compile Include="Validators\Numeric.fs" />
+    <Compile Include="Validators\Collection.fs" />
     <None Include="..\..\README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
