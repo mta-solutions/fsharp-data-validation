@@ -47,5 +47,5 @@ jobs:
 
       - name: Push
         run: |
-          dotnet nuget push FSharp.Data.Validation.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{steps.login.outputs.NUGET_API_KEY}} --include-symbols
-          dotnet nuget push FSharp.Data.Validation.Async.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{steps.login.outputs.NUGET_API_KEY}} --include-symbols
+          dotnet nuget push FSharp.Data.Validation.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{steps.login.outputs.NUGET_API_KEY}}
+          dotnet nuget push FSharp.Data.Validation.Async.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{steps.login.outputs.NUGET_API_KEY}}
