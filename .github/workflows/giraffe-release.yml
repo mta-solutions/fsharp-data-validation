@@ -46,4 +46,4 @@ jobs:
           user: ${{secrets.NUGET_USERNAME}}
 
       - name: Push
-        run: dotnet nuget push FSharp.Data.Validation.Giraffe.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{steps.login.outputs.NUGET_API_KEY}} --include-symbols
+        run: dotnet nuget push FSharp.Data.Validation.Giraffe.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{steps.login.outputs.NUGET_API_KEY}}
