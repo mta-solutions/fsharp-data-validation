@@ -25,10 +25,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout jira-pr-sync
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: mta-solutions/jira-pr-sync
           path: .jira-pr-sync
