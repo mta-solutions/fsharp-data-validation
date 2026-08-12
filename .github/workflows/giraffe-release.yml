@@ -4,6 +4,8 @@ on:
     - "giraffe-v[0-9]+.[0-9]+.[0-9]+"
 jobs:
   build:
+    permissions:
+      id-token: write  # enable GitHub OIDC token issuance for this job
 
     runs-on: ubuntu-latest
     
@@ -36,8 +38,12 @@ jobs:
       - name: Pack
         run: dotnet pack --configuration Release /p:NuGetVersion=${VERSION} /p:PackageVersion=${VERSION} --output .
 
-      - name: Push
-        run: dotnet nuget push FSharp.Data.Validation.Giraffe.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${MTA_NUGET_KEY} --symbol-source https://symbols.nuget.org/download/symbols --symbol-api-key ${MTA_NUGET_KEY} 
+      # Get a short-lived NuGet API key
+      - name: NuGet login (OIDC → temp API key)
+        uses: NuGet/login@v1
+        id: login
+        with:
+          user: ${{secrets.NUGET_USERNAME}}
 
-        env:
-          MTA_NUGET_KEY: ${{ secrets.MTA_NUGET_KEY }}
+      - name: Push
+        run: dotnet nuget push FSharp.Data.Validation.Giraffe.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{steps.login.outputs.NUGET_API_KEY}} --include-symbols
