@@ -1,4 +1,4 @@
-module FSharp.Data.Validation.Async.Tests
+module FSharp.Data.Validation.Async.Tests.Default
 
 open FsCheck.Xunit
 open FsUnit.Xunit

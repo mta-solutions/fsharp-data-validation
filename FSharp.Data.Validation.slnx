@@ -1,0 +1,14 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="samples/FSharp.Data.Validation.Samples/FSharp.Data.Validation.Samples.fsproj" />
+  <Project Path="samples/GettingStarted/GettingStarted.fsproj" />
+  <Project Path="src/FSharp.Data.Validation.Async/FSharp.Data.Validation.Async.fsproj" />
+  <Project Path="src/FSharp.Data.Validation.Giraffe/FSharp.Data.Validation.Giraffe.fsproj" />
+  <Project Path="src/FSharp.Data.Validation/FSharp.Data.Validation.fsproj" />
+  <Project Path="tests/FSharp.Data.Validation.Async.Tests/FSharp.Data.Validation.Async.Tests.fsproj" />
+  <Project Path="tests/FSharp.Data.Validation.Tests/FSharp.Data.Validation.Tests.fsproj" />
+</Solution>
