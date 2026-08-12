@@ -1,5 +1,9 @@
 # Revision history for fsharp-data-validation
 
+## 4.0.0 - 08/12/2026
+
+* Drop support for .NET 8.0.
+
 ## 3.0.0 - 01/23/2025
 
 * Drop support for .NET 6.0.
