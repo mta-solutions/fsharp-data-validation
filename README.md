@@ -4,6 +4,8 @@
 
 ## Table of Contents <!-- omit in toc -->
 
+- [Installation](#installation)
+- [Quick Start](#quick-start)
 - [Getting Started](#getting-started)
   - [Validating Primitive Types](#validating-primitive-types)
   - [The Proof Type](#the-proof-type)
@@ -70,7 +72,106 @@
 - [Proof Helpers](#proof-helpers)
   - [`toResult` Helper](#toresult-helper)
   - [`toValidationFailures` Helper](#tovalidationfailures-helper)
+- [FAQ / Common Patterns](#faq--common-patterns)
+  - [When should I use `refute` vs `dispute`?](#when-should-i-use-refute-vs-dispute)
+  - [How do I compose failures from multiple domains?](#how-do-i-compose-failures-from-multiple-domains)
+  - [How do I validate nested collections?](#how-do-i-validate-nested-collections)
+  - [When should I use `mapInvalid`?](#when-should-i-use-mapinvalid)
+  - [How do I handle async validation?](#how-do-i-handle-async-validation)
+- [Advanced Patterns](#advanced-patterns)
+  - [Failure Type Composition Across Domains](#failure-type-composition-across-domains)
+  - [Conditional Field Validation](#conditional-field-validation)
+  - [Validating Nested Collections with Indices](#validating-nested-collections-with-indices)
+  - [Using `flattenProofs` for Nested Validations](#using-flattenproofs-for-nested-validations)
+  - [Cross-Field Validation](#cross-field-validation)
+  - [Pattern: Smart Constructors for Validated Types](#pattern-smart-constructors-for-validated-types)
+  - [Using `mapInvalid` for Error Transformation](#using-mapinvalid-for-error-transformation)
 - [Data-Validation Library for Haskell](#data-validation-library-for-haskell)
+
+## Installation
+
+```powershell
+dotnet add package FSharp.Data.Validation
+```
+
+For async validation support:
+
+```powershell
+dotnet add package FSharp.Data.Validation.Async
+```
+
+**Requirements:**
+- .NET 8.0 or higher
+- F# 8.0 or higher
+
+**Resources:**
+- [Getting Started guide](samples/GettingStarted/) - Step-by-step tutorial project
+- [Async validation README](src/FSharp.Data.Validation.Async/README.md) - Detailed async patterns
+- [Giraffe integration README](src/FSharp.Data.Validation.Giraffe/README.md) - Web framework usage
+
+## Quick Start
+
+Here's a minimal example showing how to validate an email address:
+
+```fsharp
+open FSharp.Data.Validation
+
+// 1. Define your failure type
+type EmailFailure =
+    | Required
+    | InvalidFormat
+    | DomainNotAllowed
+
+// 2. Create a validated type with private constructor
+type Email = private Email of string
+
+module Email =
+    // 3. Define a smart constructor that validates
+    let make (input: string option) : Proof<EmailFailure, Email> =
+        validation {
+            withValue input
+            refuteWith (isRequired Required)
+            refuteWith (fun s ->
+                if not (s.Contains("@") && s.Contains(".")) then
+                    Error InvalidFormat
+                else
+                    Ok s
+            )
+            disputeWithFact DomainNotAllowed (fun s ->
+                let parts = s.Split('@')
+                if parts.Length < 2 then false
+                else parts.[1] <> "tempmail.com"
+            )
+            qed Email
+        } |> fromVCtx
+
+    let unwrap (Email s) = s
+
+// 4. Use it in your application
+let sendWelcomeEmail email =
+    let address = Email.unwrap email
+    printfn "Sending email to %s" address
+
+// Validate user input
+let userInput = Some "user@example.com"
+match Email.make userInput with
+| Valid email ->
+    sendWelcomeEmail email  // Type-safe: only valid emails can reach here
+| Invalid (failures, fieldFailures) ->
+    printfn "Validation failed: %A" failures
+```
+
+**Key Concepts:**
+
+- **Transformation-oriented**: Validation transforms `string option` → `Email`
+- **Type safety**: Impossible to use unvalidated data (private constructor)
+- **Accumulating failures**: See all validation problems at once
+- **refute vs dispute**: `refute` stops validation and transforms types; `dispute` continues collecting failures
+
+**Next Steps:**
+- Read the [Getting Started](#getting-started) guide for detailed explanations
+- Explore [Advanced Patterns](#advanced-patterns) for complex scenarios
+- Check [Validation Helpers](#validation-helpers) for built-in validation functions
 
 ## Getting Started
 
@@ -428,7 +529,7 @@ That's why we need both `dispute*` and `refute*` operations.
 ### Back to the Example
 
 Now that we understand the difference between `dispute*` and `refute*`, let's break our example down.
-The `refuteWith` operation takes a function with the signature `'A -> Result<'F, 'B>`.
+The `refuteWith` operation takes a function with the signature `'A -> Result<'B, 'F>`.
 This function checks if a value is suitable for transformation from `'A` to `'B`.
 If so, it performs the transformation and returns it.
 Otherwise, it returns the failure.
@@ -695,22 +796,22 @@ module Example.Types
     let makeNewUser(vm:NewUserVM) =  
         validation {
             let! name = validation {
-                withField (fun () -> this.Name)
+                withField (fun () -> vm.Name)
                 // validate name
                 qed
             }
             and! username = validation {
-                withField (fun () -> this.Username)
+                withField (fun () -> vm.Username)
                 // validate username
                 qed
             }
             and! password = validation {
-                withField (fun () -> this.Password)
+                withField (fun () -> vm.Password)
                 // validate password
                 qed
             }
             and! emailAddress = validation {
-                withField (fun () -> this.EmailAddress)
+                withField (fun () -> vm.EmailAddress)
                 // validate email address
                 qed
             }
@@ -747,24 +848,24 @@ type NewUserFailure =
     let makeNewUser(vm:NewUserVM) = 
         validation {
             let! name = validation {
-                withField (fun () -> this.Name)
+                withField (fun () -> vm.Name)
                 // how do we validate an optional field?
                 qed
             }
             and! username = validation {
-                withField (fun () -> this.Username)
+                withField (fun () -> vm.Username)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
                 qed
             }
             and! password = validation {
-                withField (fun () -> this.Password)
+                withField (fun () -> vm.Password)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
                 qed
             }
             and! emailAddress = validation {
-                withField (fun () -> this.EmailAddress)
+                withField (fun () -> vm.EmailAddress)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
                 qed
@@ -798,7 +899,7 @@ Let's see it in action.
 
 ```fsharp
             let! name = validation {
-                withField (fun () -> this.Name)
+                withField (fun () -> vm.Name)
                 optional (fun v -> validation {
                     withValue v
                     refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
@@ -826,36 +927,42 @@ module Example.Types
     let makeNewUser(vm:NewUserVM) = 
         validation {
             let! name = validation {
-                withField (fun () -> this.Name)
+                withField (fun () -> vm.Name)
                 optional (fun v -> validation {
                     withValue v
-                    refuteWithProof (mkName >> Proof.mapInvalid InvalidEmailAddress)
+                    refuteWithProof (mkName >> Proof.mapInvalid InvalidName)
                 })
                 qed
             }
             and! username = validation {
-                withField (fun () -> this.Username)
+                withField (fun () -> vm.Username)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkUsername >> Proof.mapInvalid InvalidUsername)
                 qed
             }
             and! password = validation {
-                withField (fun () -> this.Password)
+                withField (fun () -> vm.Password)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkPassword >> Proof.mapInvalid InvalidPassword)
                 qed
             }
             and! emailAddress = validation {
-                withField (fun () -> this.EmailAddress)
+                withField (fun () -> vm.EmailAddress)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (mkEmailAddress >> Proof.mapInvalid InvalidEmailAddress)
                 qed
             }
-            and! _ = validation {
-                withValue this
-                disputeWithFact NameMatchesUsername (fun a -> a.Name = a.Username |> not)
+
+            let! _ = validation {
+                withValue (name, username)
+                disputeWithFact NameMatchesUsername (fun (n, u) ->
+                    match n with
+                    | Some nameVal -> Name.unwrap nameVal <> Username.unwrap u
+                    | None -> true
+                )
                 qed
             }
+
             return { NewUser.name = name; username = username; password = password; emailAddress = emailAddress; }
         } |> fromVCtx
 ```
@@ -965,7 +1072,7 @@ module NewUserVM =
         validation {
             // ... nothing new here
             and! contact = validation {
-                withField (fun () -> this.Contact)
+                withField (fun () -> vm.Contact)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
                 qed
@@ -1025,13 +1132,13 @@ module NewUserVM =
         validation {
             // ... nothing new here
             and! preferredContact = validation {
-                withField (fun () -> this.PreferredContact)
+                withField (fun () -> vm.PreferredContact)
                 refuteWith (isRequired RequiredField)
                 refuteWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
                 qed
             }
             and! additionalContacts = validation {
-                withField (fun () -> this.AdditionalContacts)
+                withField (fun () -> vm.AdditionalContacts)
                 refuteEachWithProof (ContactVM.makeContact >> Proof.mapInvalid InvalidContact)
                 qed List.ofSeq
             }
@@ -1207,7 +1314,6 @@ validation {
 
 #### `refuteEachWithProof`
 
-
 Similar to `refuteWithProof` but used for validating list like types.
 
 ```fsharp
@@ -1265,7 +1371,7 @@ validation {
         then Some InvalidString 
         else None
     )
-    // value is of type `string` here
+    // value is still of type `string option` here (dispute does not transform)
     ...
 }
 ```
@@ -1422,8 +1528,9 @@ There is an overload to the operator that takes a function with the signature `i
 
 #### `validateEach`
 
-This function accepts a function with a signature of `'A -> VCtx<'F, 'B>` that validates each element.
-The result is created from the `validation` computation expression.
+This function accepts a function with a signature of `'A -> VCtx<'F, ValueCtx<'B>>` that validates each element.
+The function should be contained in the `validation` computation expression, which returns the appropriate `VCtx` type wrapping a `ValueCtx`.
+The result accumulates all validation failures across elements while preserving valid transformed values.
 
 ```fsharp
 validation {
@@ -1433,6 +1540,8 @@ validation {
     ...
 }
 ```
+
+There is also an overload that takes a function with the signature `int -> 'A -> VCtx<'F, ValueCtx<'B>>` where the first parameter is the index of the element.
 
 ## Validation Helpers
 
@@ -1558,6 +1667,565 @@ The `toResult` helper converts a `Proof<'F,'A>` value to a `Result<'A,Validation
 ### `toValidationFailures` Helper
 
 If you are only interested in the failures, you can use the `toValidationFailures` function to convert a `Proof<'F,'A>` to a `Option<ValidationFailures<'F>>`.
+
+## FAQ / Common Patterns
+
+### When should I use `refute` vs `dispute`?
+
+**Use `refute*` operations when:**
+- You need to **transform the type** (e.g., `string option` → `string`, `string` → `EmailAddress`)
+- Validation **cannot continue** without this transformation
+- The value is **required** for subsequent validations
+
+**Use `dispute*` operations when:**
+- You want to **collect multiple failures** without stopping
+- The type **doesn't need to change**
+- You're performing **independent checks** on the same value
+
+**Example:**
+
+```fsharp
+type PasswordFailure =
+    | Required
+    | TooShort
+    | NoNumbers
+    | NoSpecialChars
+
+let validatePassword (input: string option) : Proof<PasswordFailure, string> =
+    validation {
+        withValue input
+
+        // REFUTE: Transform option to string - must happen first
+        refuteWith (isRequired Required)
+
+        // DISPUTE: Collect all password rule violations
+        disputeWithFact TooShort (minLength 8)
+        disputeWithFact NoNumbers (fun s -> Regex.IsMatch(s, @"\d"))
+        disputeWithFact NoSpecialChars (fun s -> Regex.IsMatch(s, @"[!@#$%^&*]"))
+
+        qed id
+    } |> fromVCtx
+// If input is None: stops at refuteWith, returns Invalid ([Required], ...)
+// If input is Some "short": continues through all disputes, returns Invalid ([TooShort; NoNumbers; NoSpecialChars], ...)
+```
+
+**Rule of thumb:** `refute` to transform and gate, `dispute` to accumulate.
+
+### How do I compose failures from multiple domains?
+
+Create a parent failure type that wraps sub-domain failures, then use `Proof.mapInvalid` to lift failures:
+
+```fsharp
+// Sub-domain failures
+type EmailFailure = InvalidFormat | DomainBlocked
+type PasswordFailure = TooWeak | Compromised
+type UsernameFailure = Taken | InvalidChars
+
+// Composite failure type
+type RegistrationFailure =
+    | EmailError of EmailFailure
+    | PasswordError of PasswordFailure
+    | UsernameError of UsernameFailure
+    | PasswordMismatch
+
+// Individual validators return their own failure types
+let validateEmail (s: string option) : Proof<EmailFailure, Email> = ...
+let validatePassword (s: string option) : Proof<PasswordFailure, Password> = ...
+let validateUsername (s: string option) : Proof<UsernameFailure, Username> = ...
+
+// Compose them with mapInvalid
+let validateRegistration (vm: RegistrationVM) : Proof<RegistrationFailure, Registration> =
+    validation {
+        let! email =
+            validation {
+                withField (fun () -> vm.Email)
+                refuteWithProof (validateEmail >> Proof.mapInvalid EmailError)
+                qed
+            }
+
+        and! password =
+            validation {
+                withField (fun () -> vm.Password)
+                refuteWithProof (validatePassword >> Proof.mapInvalid PasswordError)
+                qed
+            }
+
+        and! username =
+            validation {
+                withField (fun () -> vm.Username)
+                refuteWithProof (validateUsername >> Proof.mapInvalid UsernameError)
+                qed
+            }
+
+        and! confirmPassword =
+            validation {
+                withField (fun () -> vm.ConfirmPassword)
+                refuteWith (isRequired PasswordMismatch)
+                qed
+            }
+
+        let! _ = validation {
+            withValue (password, confirmPassword)
+            disputeWithFact PasswordMismatch (fun (p, cp) -> Password.unwrap p = cp)
+            qed
+        }
+
+        return (email, password, username, confirmPassword)
+    } |> fromVCtx
+```
+
+This allows each domain to maintain its own failure vocabulary while composing cleanly at higher levels.
+
+### How do I validate nested collections?
+
+Use `validateEach` for collections, with indices automatically tracked:
+
+```fsharp
+type ItemFailure =
+    | NameRequired
+    | PriceTooLow
+    | QuantityInvalid
+
+type OrderFailure =
+    | ItemError of ItemFailure
+    | NoItems
+
+type OrderItemVM = { Name: string option; Price: decimal option; Quantity: int option }
+type OrderItem = { Name: string; Price: decimal; Quantity: int }
+
+let validateOrderItem (vm: OrderItemVM) : Proof<ItemFailure, OrderItem> =
+    validation {
+        let! name =
+            validation {
+                withField (fun () -> vm.Name)
+                refuteWith (isRequired NameRequired)
+                qed
+            }
+        and! price =
+            validation {
+                withField (fun () -> vm.Price)
+                refuteWith (isRequired PriceTooLow)
+                disputeWithFact PriceTooLow (fun p -> p > 0.0m)
+                qed
+            }
+        and! quantity =
+            validation {
+                withField (fun () -> vm.Quantity)
+                refuteWith (isRequired QuantityInvalid)
+                disputeWithFact QuantityInvalid (fun q -> q > 0)
+                qed
+            }
+
+        return { Name = name; Price = price; Quantity = quantity }
+    } |> fromVCtx
+
+let validateOrder (items: OrderItemVM list) : Proof<OrderFailure, OrderItem list> =
+    validation {
+        withValue items
+        disputeWithFact NoItems (fun lst -> lst.Length > 0)
+
+        // validateEach automatically tracks indices
+        validateEach (fun item ->
+            validation {
+                withValue item
+                refuteWithProof (validateOrderItem >> Proof.mapInvalid ItemError)
+                qed
+            }
+        )
+        qed List.ofSeq
+    } |> fromVCtx
+
+// Field failures will include indices: "items.[0].Name", "items.[2].Price"
+```
+
+**Alternative with flattenProofs:**
+
+```fsharp
+let validateOrderAlternative (items: OrderItemVM list) : Proof<OrderFailure, OrderItem list> =
+    items
+    |> List.map (validateOrderItem >> Proof.mapInvalid ItemError)
+    |> flattenProofs
+```
+
+### When should I use `mapInvalid`?
+
+Use `mapInvalid` whenever you need to **lift failures into a parent type**:
+
+**1. Composing validators from different domains** (see above)
+
+**2. Adding context to failures:**
+
+```fsharp
+type InnerFailure = Empty | TooLong
+type OuterFailure = ValidationFailed of context: string * InnerFailure
+
+let validateWithContext (context: string) (input: string option) =
+    validateInner input
+    |> Proof.mapInvalid (fun failure -> ValidationFailed (context, failure))
+
+validateWithContext "user registration" (Some "")
+// Returns: Invalid ([ValidationFailed ("user registration", Empty)], ...)
+```
+
+**3. Wrapping library validators:**
+
+```fsharp
+// Library returns its own failure type
+type LibraryFailure = | LibError
+
+// Your app has its own failure type
+type AppFailure =
+    | AppError
+    | ExternalValidationFailed of LibraryFailure
+
+let validateInApp input =
+    LibraryValidator.validate input
+    |> Proof.mapInvalid ExternalValidationFailed
+```
+
+**Key insight:** `mapInvalid` transforms the `'F` type parameter in `Proof<'F, 'A>`, leaving the valid value `'A` unchanged.
+
+### How do I handle async validation?
+
+Use the `FSharp.Data.Validation.Async` package for I/O-bound validations:
+
+```fsharp
+open FSharp.Data.Validation.Async
+
+type UserFailure =
+    | Required
+    | InvalidEmail
+    | EmailAlreadyRegistered
+    | UsernameTaken
+
+// Async check against database
+let checkEmailExistsAsync (email: string) : Async<bool> =
+    async {
+        // Database query
+        return! DbContext.users.AnyAsync(fun u -> u.Email = email) |> Async.AwaitTask
+    }
+
+let checkUsernameTakenAsync (username: string) : Async<bool> =
+    async {
+        return! DbContext.users.AnyAsync(fun u -> u.Username = username) |> Async.AwaitTask
+    }
+
+// Sync validation first, then async
+let validateUserAsync (vm: UserVM) : Async<Proof<UserFailure, User>> =
+    async {
+        // 1. Synchronous validations first
+        let syncValidation =
+            validation {
+                let! email =
+                    validation {
+                        withField (fun () -> vm.Email)
+                        refuteWith (isRequired Required)
+                        disputeWithFact InvalidEmail (fun s -> s.Contains("@"))
+                        qed
+                    }
+                and! username =
+                    validation {
+                        withField (fun () -> vm.Username)
+                        refuteWith (isRequired Required)
+                        qed
+                    }
+
+                return (email, username)
+            }
+
+        // 2. If sync validation passed, run async checks
+        let! result =
+            syncValidation
+            |> VCtx.bindToAsync (fun (email, username) ->
+                async {
+                    // Run async validations asynchronously as possible
+                    let! emailExists = checkEmailExistsAsync email
+                    let! usernameTaken = checkUsernameTakenAsync username
+
+                    return
+                        validation {
+                            withValue (email, username)
+
+                            if emailExists then
+                                dispute EmailAlreadyRegistered
+
+                            if usernameTaken then
+                                dispute UsernameTaken
+
+                            qed (fun (e, u) -> { Email = e; Username = u })
+                        }
+                }
+            )
+
+        return result |> fromVCtx
+    }
+
+// Usage
+async {
+    let! proof = validateUserAsync userInput
+
+    match proof with
+    | Valid user ->
+        // Save user to database
+        do! saveUser user
+    | Invalid (failures, fieldFailures) ->
+        // Return validation errors
+        return! badRequest failures
+}
+```
+
+**Pattern summary:**
+1. Run cheap synchronous validations first (format, required, length)
+2. Use `bindToAsync` to chain async validations only if sync passed
+3. Async validations can run in parallel for better performance
+4. See [Async README](src/FSharp.Data.Validation.Async/README.md) for more patterns
+
+## Advanced Patterns
+
+### Failure Type Composition Across Domains
+
+When validating complex domains with multiple sub-types, compose failure types to maintain type safety:
+
+```fsharp
+type UsernameFailures =
+    | Empty
+    | TooLong
+
+type EmailFailures =
+    | InvalidFormat
+    | AlreadyRegistered
+
+type PasswordFailures =
+    | Empty
+    | TooWeak
+
+// Composite domain failure type
+type RegistrationFailures =
+    | Username of UsernameFailures
+    | Email of EmailFailures
+    | Password of PasswordFailures
+    | PasswordsDoNotMatch
+
+let validateUsername (un: string option) : Proof<UsernameFailures, Username> =
+    validation {
+        withField (fun () -> un)
+        refuteWith (isRequired Empty)
+        refuteWith (fun u -> if String.length u > 50 then Some TooLong else None)
+        qed Username
+    } |> fromVCtx
+
+// Use Proof.mapInvalid to lift into composite type
+let validateRegistration (form: RegisterVM)
+    : Proof<RegistrationFailures, RegisteredUser> =
+    let un = validateUsername form.Username |> Proof.mapInvalid Username
+    let em = validateEmail form.Email |> Proof.mapInvalid Email
+    let pw = validatePassword form.Password |> Proof.mapInvalid Password
+    Proof.combine
+        (fun ((u, e), p) -> createRegisteredUser u e p)
+        (Proof.combine (fun u e -> (u, e)) un em)
+        pw
+```
+
+### Conditional Field Validation
+
+Validate fields based on other field values:
+
+```fsharp
+type AddressType = | Residential | Business
+
+type AddressVM =
+    { Type: AddressType
+      Street: string option
+      Company: string option }
+
+    member this.Validate() =
+        validation {
+            let! street =
+                validation {
+                    withField (fun () -> this.Street)
+                    refuteWith (isRequired StreetRequired)
+                    qed id
+                }
+
+            and! company =
+                if this.Type = Business then
+                    validation {
+                        withField (fun () -> this.Company)
+                        refuteWith (isRequired CompanyRequired)
+                        qed id
+                    }
+                else
+                    validation {
+                        withValue None
+                        qed id
+                    }
+
+            return { Street = street; Company = company }
+        } |> fromVCtx
+```
+
+### Validating Nested Collections with Indices
+
+Track validation failures by index for collection items:
+
+```fsharp
+type ItemFailure = | NameRequired | PriceTooLow
+
+type OrderVM =
+    { Items: ItemVM list }
+
+    member this.Validate() =
+        validation {
+            let validateItem idx (item: ItemVM) : VCtx<ItemFailure, ValueCtx<OrderItem>> =
+                validation {
+                    let! name =
+                        validation {
+                            withField (fun () -> item.Name)
+                            refuteWith (isRequired NameRequired)
+                            qed id
+                        }
+                    and! price =
+                        validation {
+                            withField (fun () -> item.Price)
+                            disputeWithFact PriceTooLow (fun p -> p >= 0.01M)
+                            qed id
+                        }
+                    return { Name = name; Price = price }
+                }
+
+            withValue this.Items
+            validateEach validateItem
+            qed id
+        } |> fromVCtx
+```
+
+### Using `flattenProofs` for Nested Validations
+
+When you have a list of proofs that need to be flattened:
+
+```fsharp
+// Validating a list of items where each validation returns a Proof
+let validateItems (items: string list) : Proof<ItemFailure, string list> =
+    let proofs =
+        items
+        |> List.map (fun item ->
+            validation {
+                withValue item
+                disputeWithFact Empty (isNotNull)
+                qed id
+            } |> fromVCtx
+        )
+
+    // flattenProofs combines Proof<'F, 'A> list into Proof<'F, 'A list>
+    flattenProofs proofs
+```
+
+### Cross-Field Validation
+
+Validate relationships between multiple fields:
+
+```fsharp
+type PasswordChangeFailures =
+    | OldPasswordIncorrect
+    | NewPasswordSameAsOld
+    | ConfirmationDoesNotMatch
+
+type PasswordChangeVM =
+    { OldPassword: string option
+      NewPassword: string option
+      ConfirmNewPassword: string option }
+
+    member this.Validate() =
+        validation {
+            let! oldPwd =
+                validation {
+                    withField (fun () -> this.OldPassword)
+                    refuteWith (isRequired Required)
+                    qed id
+                }
+
+            and! newPwd =
+                validation {
+                    withField (fun () -> this.NewPassword)
+                    refuteWith (isRequired Required)
+                    refuteWith (fun p ->
+                        if p = oldPwd then Error NewPasswordSameAsOld
+                        else Ok p
+                    )
+                    qed id
+                }
+
+            and! confirmPwd =
+                validation {
+                    withField (fun () -> this.ConfirmNewPassword)
+                    refuteWith (isRequired Required)
+                    qed id
+                }
+
+            and! _ =
+                validation {
+                    // Cross-field validation: compare old and new passwords
+                    withValue (oldPwd, newPwd, confirmPwd)
+                    disputeWithFact NewPasswordSameAsOld (fun (old, new_, _) -> new_ <> old)
+                    disputeWithFact ConfirmationDoesNotMatch (fun (_, new_, confirm) -> new_ = confirm)
+                    qed
+                }
+
+            return { OldPassword = oldPwd; NewPassword = newPwd }
+        } |> fromVCtx
+```
+
+### Pattern: Smart Constructors for Validated Types
+
+Establish a pattern where only validated values can be constructed:
+
+```fsharp
+type ValidatedEmail = private ValidatedEmail of string
+
+module ValidatedEmail =
+    type ValidationFailure =
+        | InvalidFormat
+        | DomainNotAllowed
+
+    let make (str: string) : Proof<ValidationFailure, ValidatedEmail> =
+        validation {
+            withValue str
+            refuteWith (fun s ->
+                if not (Regex.IsMatch(s, ".+@.+")) then
+                    Error InvalidFormat
+                else
+                    Ok s
+            )
+            disputeWithFact DomainNotAllowed (fun s ->
+                let parts = s.Split('@')
+                if parts.Length < 2 then false
+                else
+                    let domain = parts.[1]
+                    ["gmail.com"; "yahoo.com"; "outlook.com"]
+                    |> List.contains domain |> not
+            )
+            qed ValidatedEmail
+        } |> fromVCtx
+
+    let unwrap (ValidatedEmail s) = s
+
+// Usage ensures type safety
+let handleEmail (email: ValidatedEmail) =
+    let address = ValidatedEmail.unwrap email
+    sendEmail address
+```
+
+### Using `mapInvalid` for Error Transformation
+
+Transform failure types to compose validators:
+
+```fsharp
+let validateUsername un : Proof<UsernameFailure, Username> = ...
+
+let addInvalidUsernameToForm (proof: Proof<UsernameFailure, Username>)
+    : Proof<FormError, Username> =
+    Proof.mapInvalid (fun uf -> FormError.UsernameError uf) proof
+```
 
 ## Data-Validation Library for Haskell
 
